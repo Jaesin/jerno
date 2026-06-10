@@ -1,7 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { translateAndSpeak, tts } from '../api.js'
-import { addToHistory, starHistoryItem, getHistory } from '../data/store.js'
+import { addToHistory, starHistoryItem, getHistory, addToTripDeck, removeFromTripDeck } from '../data/store.js'
+import { itemsByUnit } from '../content/index.js'
+
+const PHRASEBOOK = itemsByUnit['u1-survival'] || []
 
 const VOICES = [
   { id: 'ja-JP-NanamiNeural', label: 'Nanami (Female)', gender: 'female' },
@@ -27,6 +30,8 @@ export default function Travel() {
   const [history, setHistory] = useState([])
   const [historyOpen, setHistoryOpen] = useState(false)
   const [currentHistoryId, setCurrentHistoryId] = useState(null)
+  const [showCard, setShowCard] = useState(false)
+  const [phrasebookOpen, setPhrasebookOpen] = useState(false)
   const audioRef = useRef(null)
   const inputRef = useRef(null)
   const recognitionRef = useRef(null)
@@ -132,6 +137,12 @@ export default function Travel() {
     if (audioData) playAudio(audioData)
   }, [audioData, playAudio])
 
+  // Auto-play when the show-card opens
+  useEffect(() => {
+    if (showCard) handlePlay()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showCard])
+
   // Dictation (Web Speech API)
   const handleDictate = useCallback(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -201,7 +212,12 @@ export default function Travel() {
           <div className="spinner" />
         ) : japanese ? (
           <>
-            <div className="japanese" lang="ja">{japanese}</div>
+            <div
+              className="japanese"
+              lang="ja"
+              onClick={() => setShowCard(true)}
+              style={{ cursor: 'pointer' }}
+            >{japanese}</div>
             {romaji && <div className="romaji" lang="ja-Latn">{romaji}</div>}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <button
@@ -215,7 +231,13 @@ export default function Travel() {
                 <button
                   className={`star-btn ${currentStarred ? 'starred' : ''}`}
                   onClick={async () => {
-                    await starHistoryItem(currentHistoryId, true)
+                    const newStarred = !currentStarred
+                    await starHistoryItem(currentHistoryId, newStarred)
+                    const item = history.find(h => h.id === currentHistoryId)
+                    if (item) {
+                      if (newStarred) await addToTripDeck({ ...item, starred: true })
+                      else await removeFromTripDeck(currentHistoryId)
+                    }
                     setHistory(await getHistory('local'))
                   }}
                   aria-label="Star this phrase"
@@ -232,6 +254,11 @@ export default function Travel() {
           </p>
         )}
       </div>
+
+      {/* Phrasebook */}
+      <button className="phrasebook-chip" onClick={() => setPhrasebookOpen(true)}>
+        📖 Phrasebook
+      </button>
 
       {/* Error */}
       {error && <div className="error-msg">{error}</div>}
@@ -315,7 +342,10 @@ export default function Travel() {
                 }}>▶</button>
                 <button className={`star-btn ${item.starred ? 'starred' : ''}`}
                   onClick={async () => {
-                    await starHistoryItem(item.id, !item.starred)
+                    const newStarred = !item.starred
+                    await starHistoryItem(item.id, newStarred)
+                    if (newStarred) await addToTripDeck({ ...item, starred: true })
+                    else await removeFromTripDeck(item.id)
                     setHistory(await getHistory('local'))
                   }}>
                   {item.starred ? '★' : '☆'}
@@ -330,6 +360,46 @@ export default function Travel() {
       <footer className="footer">
         Built for our trip to Japan ✈️
       </footer>
+
+      {/* Show-card overlay */}
+      {showCard && (
+        <div className="show-card-overlay" onClick={() => setShowCard(false)}>
+          <div className="show-card-content" onClick={e => e.stopPropagation()}>
+            <div className="show-card-ja" lang="ja">{japanese}</div>
+            {romaji && <div className="show-card-romaji">{romaji}</div>}
+            <button
+              className={`show-card-play ${playing ? 'playing' : ''}`}
+              onClick={handlePlay}
+              aria-label="Play"
+            >{playing ? '◉' : '▶'}</button>
+            <button className="show-card-close" onClick={() => setShowCard(false)}>✕ tap to close</button>
+          </div>
+        </div>
+      )}
+
+      {/* Phrasebook modal */}
+      {phrasebookOpen && (
+        <div className="phrasebook-overlay" onClick={() => setPhrasebookOpen(false)}>
+          <div className="phrasebook-modal" onClick={e => e.stopPropagation()}>
+            <div className="phrasebook-header">
+              <h2>Survival Phrases</h2>
+              <button className="phrasebook-close" onClick={() => setPhrasebookOpen(false)}>✕</button>
+            </div>
+            <div className="phrasebook-list">
+              {PHRASEBOOK.map(phrase => (
+                <div key={phrase.id} className="phrasebook-row" onClick={() => {
+                  setInput(phrase.en)
+                  setPhrasebookOpen(false)
+                }}>
+                  <div className="phrasebook-ja" lang="ja">{phrase.ja}</div>
+                  <div className="phrasebook-en">{phrase.en}</div>
+                  <div className="phrasebook-rm">{phrase.romaji}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -46,3 +46,64 @@ export async function getHistory(uid, limit = 50) {
     .sort((a, b) => (b.at || b.updatedAt || '').localeCompare(a.at || a.updatedAt || ''))
     .slice(0, limit)
 }
+
+// --- Trip deck helpers ---
+
+export async function addToTripDeck(historyItem) {
+  return store.put('decks', {
+    id: historyItem.id,
+    unit: 'trip',
+    deckId: 'trip',
+    type: 'phrase',
+    ja: historyItem.japanese,
+    reading: historyItem.reading || '',
+    romaji: historyItem.romaji || '',
+    en: historyItem.en,
+    segments: historyItem.segments || [],
+    starred: true,
+    addedAt: new Date().toISOString(),
+  })
+}
+
+export async function removeFromTripDeck(id) {
+  return store.remove('decks', id)
+}
+
+// --- SRS helpers ---
+
+export async function getSRSState(itemId) {
+  return store.get('srs', itemId)
+}
+
+export async function getAllSRSStates() {
+  return store.list('srs')
+}
+
+export async function saveSRSState(state) {
+  return store.put('srs', state)
+}
+
+export async function getSRSMap() {
+  const all = await store.list('srs')
+  const map = new Map()
+  for (const s of all) map.set(s.id, s)
+  return map
+}
+
+export async function getProgress(key) {
+  return store.get('progress', key)
+}
+
+export async function saveProgress(record) {
+  return store.put('progress', record)
+}
+
+export async function getProfile() {
+  const profile = await store.get('profile', 'local')
+  return profile || {}
+}
+
+export async function saveProfile(patch) {
+  const existing = (await store.get('profile', 'local')) || {}
+  return store.put('profile', { ...existing, ...patch, id: 'local' })
+}

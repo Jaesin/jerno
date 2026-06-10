@@ -3,6 +3,7 @@ import Travel from './screens/Travel.jsx'
 import Learn from './screens/Learn.jsx'
 import Settings from './screens/Settings.jsx'
 import Join from './screens/Join.jsx'
+import KanaArcade from './screens/KanaArcade.jsx'
 
 function BottomNav() {
   const navigate = useNavigate()
@@ -38,11 +39,13 @@ export default function Shell() {
           <Route path="/learn" element={<Learn />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/join" element={<Join />} />
+          <Route path="/arcade" element={<KanaArcade />} />
         </Routes>
       </div>
       <Routes>
         <Route path="/settings" element={null} />
         <Route path="/join" element={null} />
+        <Route path="/arcade" element={null} />
         <Route path="*" element={<BottomNav />} />
       </Routes>
     </HashRouter>

@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.DEV
+export const API_BASE = import.meta.env.DEV
   ? 'http://localhost:5001/jerno/us-central1'
   : 'https://us-central1-jerno.cloudfunctions.net'
 
