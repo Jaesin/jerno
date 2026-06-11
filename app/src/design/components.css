@@ -1,0 +1,146 @@
+/* ============================================================================
+   components.css — Jerno UI kit classes (jn-* prefixed, collision-safe).
+   Pairs with tokens.css. Phone shell, surfaces, buttons, chips, progress
+   track, and bottom navigation.
+   ============================================================================ */
+
+.jn {
+  font-family: var(--f-body);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.jn *, .jn *::before, .jn *::after { box-sizing: border-box; }
+
+.jn-screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* status bar */
+.jn-status {
+  flex: 0 0 auto;
+  height: 50px;
+  padding: 0 26px 0 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--f-body);
+  color: var(--text);
+}
+.jn-status .clock { font-size: 15px; font-weight: 700; letter-spacing: 0.2px; }
+.jn-status .sys { display: flex; align-items: center; gap: 6px; }
+
+/* scroll body (visual only on the board) */
+.jn-body { flex: 1 1 auto; min-height: 0; overflow: hidden; position: relative; }
+.jn-pad { padding: 0 var(--s5); }
+
+/* home indicator */
+.jn-home-ind {
+  position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%);
+  width: 134px; height: 5px; border-radius: var(--pill);
+  background: var(--text); opacity: 0.30;
+}
+
+/* ============================================================================
+   Surfaces
+   ============================================================================ */
+.jn-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r3);
+  box-shadow: var(--shadow-sm);
+}
+.jn-card-flat {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r3);
+}
+
+/* labels */
+.jn-eyebrow {
+  font-family: var(--f-body);
+  font-size: 11px; font-weight: 800; letter-spacing: 1.6px;
+  text-transform: uppercase; color: var(--muted);
+}
+.jn-display { font-family: var(--f-display); font-weight: 700; letter-spacing: 0.2px; line-height: 1.0; }
+.jn-jp { font-family: var(--f-jp); }
+
+/* ============================================================================
+   Buttons
+   ============================================================================ */
+.jn-btn {
+  font-family: var(--f-body);
+  font-weight: 800;
+  border: none; cursor: pointer;
+  border-radius: var(--pill);
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  min-height: var(--tap);
+  padding: 0 22px;
+  font-size: 16px;
+  transition: transform .12s, filter .12s;
+}
+.jn-btn:active { transform: translateY(1px); }
+.jn-btn--green { background: var(--green); color: var(--on-green); }
+.jn-btn--red   { background: var(--red);   color: var(--on-red); }
+.jn-btn--pink  { background: var(--pink);  color: var(--on-pink); }
+.jn-btn--sky   { background: var(--sky);   color: var(--on-dark); }
+.jn-btn--ink   { background: var(--text);  color: var(--bg); }
+.jn-btn--ghost { background: transparent; color: var(--text); border: 1.5px solid var(--line-2); }
+.jn-btn--block { display: flex; width: 100%; }
+
+/* chips */
+.jn-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 12px; border-radius: var(--pill);
+  font-family: var(--f-body); font-size: 12.5px; font-weight: 700;
+  background: var(--sunk); color: var(--text);
+}
+
+/* progress track */
+.jn-track { height: 8px; border-radius: var(--pill); background: var(--sunk); overflow: hidden; }
+.jn-track > i { display: block; height: 100%; border-radius: var(--pill); }
+
+/* ============================================================================
+   Bottom navigation
+   ============================================================================ */
+.jn-nav {
+  flex: 0 0 auto;
+  position: relative;
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  border-top: 1px solid var(--line);
+  backdrop-filter: blur(8px);
+  padding: 8px 6px 22px;
+  display: flex; align-items: flex-end; justify-content: space-around;
+}
+.jn-tab {
+  flex: 1 1 0; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: none; border: none; cursor: pointer; padding: 4px 2px;
+  color: var(--faint);
+  font-family: var(--f-body); font-size: 10.5px; font-weight: 700; letter-spacing: 0.2px;
+}
+.jn-tab.is-active { color: var(--text); }
+.jn-tab .lbl { line-height: 1; }
+.jn-tab--accent.is-active { color: var(--green); }
+
+/* center raised translate FAB */
+.jn-fab {
+  flex: 0 0 auto;
+  width: 60px; height: 60px; border-radius: var(--pill);
+  background: var(--red); color: var(--on-red);
+  border: 4px solid var(--surface);
+  display: flex; align-items: center; justify-content: center;
+  margin: -30px 4px 0; cursor: pointer;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--red) 40%, transparent);
+}
+.jn-fab .cap {
+  position: absolute; bottom: -2px; font-size: 10.5px; font-weight: 800;
+  color: var(--text); letter-spacing: 0.2px;
+}

@@ -1,10 +1,24 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { grade, initialState, STAGE_EMOJI } from '../data/srs.js'
+import { grade, initialState } from '../data/srs.js'
 import { getSRSState, saveSRSState, getSRSMap } from '../data/store.js'
 import { itemsByUnit } from '../content/index.js'
 import { tts } from '../api.js'
 import { awardEvent } from '../data/progress.js'
+import { Plant, Flame, NavIco, Ico } from '../design/primitives.jsx'
+
+// SRS stage name → Plant growth-stage index (seed → sprout → bamboo → blossom)
+const STAGE_IDX = { seed: 0, sprout: 1, bamboo: 2, blossom: 3 }
+
+// Padlock (no lock glyph in the shared ICONS set)
+function LockIco({ size = 20 }) {
+  return (
+    <Ico size={size}>
+      <rect x="5" y="11" width="14" height="9" rx="2.5" />
+      <path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3" />
+    </Ico>
+  )
+}
 
 // ---------------------------------------------------------------------------
 // Shared constants + helpers
@@ -165,8 +179,8 @@ function TimerBar({ left, total }) {
 
 function StreakDisplay({ streak }) {
   return (
-    <div className="arcade-streak">
-      🔥 streak {streak} · ×{multFor(streak)}
+    <div className={'arcade-streak' + (streak >= 3 ? ' hot' : '')}>
+      <Flame size={16} on={streak > 0} /> streak {streak} · ×{multFor(streak)}
     </div>
   )
 }
@@ -190,24 +204,30 @@ function CelebrateBanner({ show, streak }) {
 function EndCard({ heading = 'Round over!', lines = [], stageUps = [], onReplay, replayLabel = 'Play again', onExit, exitLabel = 'Back', earnedXp = 0 }) {
   return (
     <div className="arcade-end-card">
+      <Plant stage={3} size={56} />
       <h2>{heading}</h2>
-      {lines.map((l, i) => <p key={i} style={{ margin: '4px 0', color: 'var(--text-muted)', fontSize: 14 }}>{l}</p>)}
+      {lines.map((l, i) => <p key={i} className="arcade-end-lines">{l}</p>)}
       {stageUps.length > 0 && (
         <div className="arcade-stage-ups">
           {stageUps.map((s, i) => (
             <div key={i} className="arcade-stage-up-row">
-              <span style={{ fontFamily: "'Noto Sans JP', sans-serif", fontWeight: 700 }}>{s.glyph}</span>
-              {' '}({s.romaji}) {STAGE_EMOJI[s.from]} → {STAGE_EMOJI[s.to]}
+              <span className="glyph">{s.glyph}</span>
+              <span className="romaji">{s.romaji}</span>
+              <span className="stage-shift">
+                <Plant stage={STAGE_IDX[s.from] ?? 0} size={20} />
+                <NavIco name="arrowR" size={13} />
+                <Plant stage={STAGE_IDX[s.to] ?? 0} size={20} />
+              </span>
             </div>
           ))}
         </div>
       )}
       {earnedXp > 0
-        ? <p style={{ color: 'var(--accent)', fontSize: 15, fontWeight: 700, margin: '12px 0' }}>+{earnedXp} XP ✨</p>
+        ? <p className="session-xp" style={{ fontSize: 24 }}>+{earnedXp} XP</p>
         : null}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-        {onReplay && <button className="btn-primary" onClick={onReplay}>{replayLabel}</button>}
-        <button className="kana-choice-btn" onClick={onExit}>{exitLabel}</button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8, width: '100%' }}>
+        {onReplay && <button className="jn-btn jn-btn--green jn-btn--block" onClick={onReplay}>{replayLabel}</button>}
+        <button className="jn-btn jn-btn--ghost jn-btn--block" onClick={onExit}>{exitLabel}</button>
       </div>
     </div>
   )
@@ -479,7 +499,7 @@ function PairsGame({ onExit }) {
   return (
     <div className="arcade-screen">
       <GameHeader title="Pairs" onExit={onExit} />
-      <p style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center' }}>
+      <p style={{ color: 'var(--muted)', fontSize: 13, textAlign: 'center' }}>
         Match each kana with its reading
       </p>
       <div className="pairs-grid">
@@ -624,7 +644,7 @@ function EchoTilesGame({ onExit }) {
           onClick={() => playKana(q.target.glyph)}>
           🔊
         </button>
-        <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 8 }}>Tap to replay</p>
+        <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 8 }}>Tap to replay</p>
       </div>
       <div className={'kana-choices' + (kidMode ? ' kid' : '')} style={{ gridTemplateColumns: '1fr 1fr' }}>
         {q.options.map((opt, idx) => {
@@ -761,15 +781,15 @@ function KanaLadderGame({ onExit }) {
         const cleared = rowCleared(row)
         return (
           <div key={row} className={'ladder-rung' + (unlocked ? '' : ' locked')}>
-            <span className="ladder-rung-status">{cleared ? '✓' : unlocked ? '🔓' : '🔒'}</span>
+            <span className={'ladder-rung-status' + (cleared ? ' cleared' : unlocked ? ' open' : '')}>
+              {cleared ? <NavIco name="check" size={20} /> : unlocked ? <NavIco name="arrowR" size={20} /> : <LockIco size={20} />}
+            </span>
             <div className="ladder-rung-preview">
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 2 }}>
-                {ROW_LABELS[row]}
-              </div>
+              <div className="ladder-rung-label">{ROW_LABELS[row]}</div>
               {items.map(i => i.glyph).join('・')}
             </div>
             {unlocked && (
-              <button className="btn-primary" style={{ padding: '8px 16px', fontSize: 13 }}
+              <button className="jn-btn jn-btn--green" style={{ padding: '0 16px', fontSize: 13 }}
                 onClick={() => startRung(row)}>
                 {cleared ? 'Replay' : 'Start'}
               </button>
@@ -787,7 +807,7 @@ function IntroCard({ item }) {
     <div style={{ textAlign: 'center' }}>
       <div className="kana-display-large">{item.glyph}</div>
       <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>{item.romaji}</div>
-      <p style={{ color: 'var(--text-muted)', fontSize: 14, lineHeight: 1.5, padding: '0 8px' }}>
+      <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.5, padding: '0 8px' }}>
         {item.notes}
       </p>
       <button className="arcade-back" style={{ margin: '8px auto 0' }}
@@ -801,10 +821,14 @@ function IntroCard({ item }) {
 // ---------------------------------------------------------------------------
 
 const GAMES = [
-  { id: 'ladder', name: 'Kana Ladder 🪜', desc: 'Climb row by row — learn new kana, then survive the gauntlet.' },
-  { id: 'pop', name: 'Kana Pop 🎈', desc: 'See the kana, tap the right reading. Fast and furious.' },
-  { id: 'pairs', name: 'Pairs 🎴', desc: 'Memory match: flip cards to pair kana with their readings.' },
-  { id: 'echo', name: 'Echo Tiles 🔊', desc: 'Listen first, then pick the kana you heard. Ear training.' },
+  { id: 'ladder', name: 'Kana Ladder', desc: 'Climb row by row — learn new kana, then survive the gauntlet.',
+    icon: 'arcade', color: 'var(--pink)', soft: 'var(--pink-soft)', ink: 'var(--on-pink)' },
+  { id: 'pop', name: 'Kana Pop', desc: 'See the kana, tap the right reading. Fast and furious.',
+    icon: 'bolt', color: 'var(--green)', soft: 'var(--green-soft)', ink: 'var(--on-green)' },
+  { id: 'pairs', name: 'Pairs', desc: 'Memory match: flip cards to pair kana with their readings.',
+    icon: 'cards', color: 'var(--sky)', soft: 'var(--sky-soft)', ink: 'var(--on-dark)' },
+  { id: 'echo', name: 'Echo Tiles', desc: 'Listen first, then pick the kana you heard. Ear training.',
+    icon: 'mic', color: 'var(--gold)', soft: 'var(--gold-soft)', ink: 'var(--on-dark)' },
 ]
 
 export default function KanaArcade() {
@@ -820,16 +844,20 @@ export default function KanaArcade() {
   return (
     <div className="arcade-screen">
       <button className="arcade-back" onClick={() => navigate('/learn')}>← Back</button>
-      <h2 style={{ fontSize: 22, marginBottom: 4 }}>Kana Arcade 🕹</h2>
-      <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 12 }}>
+      <div className="jn-eyebrow" style={{ color: 'var(--pink)' }}>Arcade</div>
+      <h2 className="jn-display" style={{ fontSize: 26, margin: '4px 0' }}>Kana Arcade</h2>
+      <p style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 600, marginBottom: 12 }}>
         Four ways to make hiragana stick.
       </p>
       <div className="arcade-lobby">
         {GAMES.map(g => (
           <div key={g.id} className="arcade-game-card">
+            <span className="arcade-game-icon" style={{ background: g.soft, color: g.color }}>
+              <NavIco name={g.icon} size={22} />
+            </span>
             <h3>{g.name}</h3>
             <p>{g.desc}</p>
-            <button className="btn-primary" style={{ marginTop: 'auto' }}
+            <button className="jn-btn jn-btn--block" style={{ marginTop: 'auto', background: g.color, color: g.ink }}
               onClick={() => setGame(g.id)}>
               Play
             </button>

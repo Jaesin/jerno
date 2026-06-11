@@ -1,0 +1,186 @@
+/* ============================================================================
+   tokens.css — Jerno design tokens.
+   Every token is defined three times: [data-theme="light"] (Daylight Garden),
+   [data-theme="dark"] (Lantern Night), [data-theme="hero"] (Crimson Hour).
+   Components reference semantic vars only and never know the active theme.
+   In production: drive light/dark from prefers-color-scheme; let the Settings
+   picker set an explicit data-theme on the root when the user opts out.
+   ============================================================================ */
+
+:root {
+  /* spacing (4pt) */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px;
+  --s7: 32px; --s8: 40px; --s9: 48px;
+
+  /* radii — Jerno's identity move: soft, friendly, rounded */
+  --r1: 10px; --r2: 14px; --r3: 20px; --r4: 26px; --r5: 32px; --pill: 999px;
+
+  --tap: 44px;
+
+  --f-display: 'Zen Maru Gothic', sans-serif;   /* rounded, Japanese-rooted */
+  --f-body:    'Hanken Grotesk', sans-serif;     /* warm neutral grotesk     */
+  --f-jp:      'Zen Maru Gothic', 'Noto Sans JP', sans-serif;
+  --f-kana:    'Noto Sans JP', sans-serif;       /* big exercise glyphs       */
+}
+
+/* ---- Light · "Daylight Garden" -------------------------------------------- */
+[data-theme="light"] {
+  --bg:           #F4ECD8;   /* shared paper — ties Jerno to the trip family */
+  --bg-2:         #EEE4CD;
+  --surface:      #FFFBF1;
+  --surface-2:    #FBF4E4;
+  --sunk:         #EBE0C7;
+  --text:         #221C15;
+  --muted:        #897B61;
+  --faint:        #B4A684;
+  --line:         rgba(34,28,21,0.10);
+  --line-2:       rgba(34,28,21,0.17);
+
+  --red:          #C5302B;   /* energy · streak · primary CTA (inherited)   */
+  --red-press:    #A5241F;
+  --red-soft:     rgba(197,48,43,0.12);
+  --green:        #5C8A3C;   /* growth · practice · the daily core action   */
+  --green-press:  #4C7531;
+  --green-soft:   rgba(92,138,60,0.14);
+  --pink:         #D2748F;   /* blossom · trip deck · celebration           */
+  --pink-press:   #BC5E7A;
+  --pink-soft:    rgba(210,116,143,0.16);
+  --gold:         #DDA12B;   /* XP · ranks                                  */
+  --gold-soft:    rgba(221,161,43,0.18);
+  --sky:          #4E83A8;   /* translate · cool utility                    */
+  --sky-soft:     rgba(78,131,168,0.14);
+  --primary:      #5C8A3C;   /* daily-action fill — theme-swappable         */
+  --primary-press:#4C7531;
+  --primary-soft: rgba(92,138,60,0.14);
+
+  --on-red:       #FFF7E9;
+  --on-green:     #FBFCF3;
+  --on-pink:      #FFF6F2;
+  --on-primary:   #FBFCF3;
+  --on-dark:      #FFFBF1;
+
+  --shadow-sm: 0 1px 2px rgba(34,28,21,0.05), 0 2px 6px rgba(34,28,21,0.05);
+  --shadow:    0 1px 2px rgba(34,28,21,0.05), 0 8px 24px rgba(34,28,21,0.08);
+  --shadow-lg: 0 2px 4px rgba(34,28,21,0.06), 0 18px 40px rgba(34,28,21,0.12);
+
+  --scrim:     rgba(34,28,21,0.42);
+
+  --shell-edge: #e6dcc2;
+}
+
+/* ---- Dark · "Lantern Night" ----------------------------------------------- */
+[data-theme="dark"] {
+  --bg:           #16213A;   /* deep indigo — family of the trip's night    */
+  --bg-2:         #1B2746;
+  --surface:      rgba(255,255,255,0.055);
+  --surface-2:    rgba(255,255,255,0.03);
+  --sunk:         rgba(0,0,0,0.20);
+  --text:         #F6EEDD;
+  --muted:        rgba(246,238,221,0.58);
+  --faint:        rgba(246,238,221,0.36);
+  --line:         rgba(246,238,221,0.13);
+  --line-2:       rgba(246,238,221,0.24);
+
+  --red:          #F0593F;
+  --red-press:    #D8472F;
+  --red-soft:     rgba(240,89,63,0.16);
+  --green:        #84BA6A;
+  --green-press:  #6FA557;
+  --green-soft:   rgba(132,186,106,0.17);
+  --pink:         #EB9DB4;
+  --pink-press:   #D885A0;
+  --pink-soft:    rgba(235,157,180,0.18);
+  --gold:         #EFBF50;
+  --gold-soft:    rgba(239,191,80,0.18);
+  --sky:          #6FB0CE;
+  --sky-soft:     rgba(111,176,206,0.16);
+  --primary:      #84BA6A;
+  --primary-press:#6FA557;
+  --primary-soft: rgba(132,186,106,0.17);
+
+  --on-red:       #1B1410;
+  --on-green:     #16213A;
+  --on-pink:      #2A1820;
+  --on-primary:   #16213A;
+  --on-dark:      #16213A;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.30);
+  --shadow:    0 2px 8px rgba(0,0,0,0.34);
+  --shadow-lg: 0 12px 34px rgba(0,0,0,0.44);
+
+  --scrim:     rgba(0,0,0,0.58);
+
+  --shell-edge: #0e1729;
+}
+
+/* ---- Hero · "Crimson Hour" (gothic anime) --------------------------------- *
+   Near-black with depth, crimson energy as the daily-action fill, mystic jade
+   for the living things (plants/path), antique gold for rank. Opt-in look. */
+[data-theme="hero"] {
+  --bg:           #0B0D15;   /* void black, cool undertone */
+  --bg-2:         #12141F;
+  --surface:      rgba(255,255,255,0.05);
+  --surface-2:    rgba(255,255,255,0.028);
+  --sunk:         rgba(0,0,0,0.40);
+  --text:         #ECEAF3;   /* cold off-white */
+  --muted:        rgba(236,234,243,0.54);
+  --faint:        rgba(236,234,243,0.32);
+  --line:         rgba(236,234,243,0.12);
+  --line-2:       rgba(236,234,243,0.22);
+
+  --red:          #F5384C;   /* crimson — streak · energy · the hero fill   */
+  --red-press:    #DA2438;
+  --red-soft:     rgba(245,56,76,0.16);
+  --green:        #25A972;   /* mystic jade — living things                 */
+  --green-press:  #1E8C5E;
+  --green-soft:   rgba(37,169,114,0.16);
+  --pink:         #D9689B;   /* gothic orchid                               */
+  --pink-press:   #C4547F;
+  --pink-soft:    rgba(217,104,155,0.18);
+  --gold:         #D9B25A;   /* antique gold                                */
+  --gold-soft:    rgba(217,178,90,0.18);
+  --sky:          #5BA6D6;
+  --sky-soft:     rgba(91,166,214,0.16);
+  --primary:      #F5384C;   /* the daily action burns crimson here         */
+  --primary-press:#DA2438;
+  --primary-soft: rgba(245,56,76,0.16);
+
+  --on-red:       #FFF1F2;
+  --on-green:     #06140D;
+  --on-pink:      #2A0E18;
+  --on-primary:   #FFF1F2;
+  --on-dark:      #0B0D15;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.5);
+  --shadow:    0 3px 14px rgba(0,0,0,0.55);
+  --shadow-lg: 0 16px 44px rgba(0,0,0,0.68);
+
+  --scrim:     rgba(0,0,0,0.66);
+
+  --shell-edge: #05060b;
+}
+
+/* gothic depth — a faint crimson aura bleeding from the top, jade from below */
+[data-theme="hero"] .jn-screen {
+  background:
+    radial-gradient(130% 80% at 50% -18%, rgba(245,56,76,0.11), transparent 56%),
+    radial-gradient(110% 70% at 50% 124%, rgba(37,169,114,0.07), transparent 60%),
+    var(--bg);
+}
+[data-theme="hero"] .jn-display { letter-spacing: 0.4px; }
+
+/* ============================================================================
+   Compatibility bridge (pass 1 only) — legacy var names that the not-yet-
+   restyled screens (Travel, Arcade, Speaking Lab, session runner…) still use.
+   Mapped onto the active theme so old CSS keeps working. Pass 2 removes this.
+   ============================================================================ */
+[data-theme="light"], [data-theme="dark"], [data-theme="hero"] {
+  --accent: var(--red);
+  --accent-hover: var(--red-press);
+  --surface-hover: var(--surface-2);
+  --text-muted: var(--muted);
+  --radius: var(--r2);
+  --radius-sm: var(--r1);
+  --jp-font: var(--f-jp);
+  --en-font: var(--f-body);
+}

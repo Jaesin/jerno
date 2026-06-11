@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { translateAndSpeak, tts } from '../api.js'
 import { addToHistory, starHistoryItem, getHistory, addToTripDeck, removeFromTripDeck } from '../data/store.js'
 import { itemsByUnit } from '../content/index.js'
+import { NavIco } from '../design/primitives.jsx'
 
 const PHRASEBOOK = itemsByUnit['u1-survival'] || []
 
@@ -201,6 +202,7 @@ export default function Travel() {
     <div className="app">
       {/* Header */}
       <header className="header">
+        <div className="jn-eyebrow" style={{ color: 'var(--sky)' }}>Translate</div>
         <h1>JER<span>NO</span></h1>
         <p className="subtitle">Japanese Travel Companion</p>
         <Link to="/settings" className="settings-gear" aria-label="Settings">⚙</Link>
@@ -257,7 +259,7 @@ export default function Travel() {
 
       {/* Phrasebook */}
       <button className="phrasebook-chip" onClick={() => setPhrasebookOpen(true)}>
-        📖 Phrasebook
+        <NavIco name="learn" size={16} /> Phrasebook
       </button>
 
       {/* Error */}
@@ -278,7 +280,8 @@ export default function Travel() {
 
         <div className="button-row">
           <button
-            className="btn-primary"
+            className="jn-btn jn-btn--sky"
+            style={{ flex: 1, opacity: loading || !input.trim() ? 0.45 : 1 }}
             onClick={handleTranslate}
             disabled={loading || !input.trim()}
           >
@@ -290,7 +293,7 @@ export default function Travel() {
             aria-label={listening ? 'Stop dictation' : 'Dictate in English'}
             title={listening ? 'Tap to stop' : 'Tap to dictate'}
           >
-            🎤
+            <NavIco name="mic" size={22} />
           </button>
         </div>
 

@@ -1,41 +1,78 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { getTheme, setTheme } from '../design/theme.js'
+import { getProgressData, rankFor } from '../data/progress.js'
+import { Rank } from '../design/primitives.jsx'
+import { StreakPill, Chip } from '../design/ui.jsx'
 
 const VOICES = [
   { id: 'ja-JP-NanamiNeural', label: 'Nanami (Female)' },
   { id: 'ja-JP-KeitaNeural',  label: 'Keita (Male)' },
 ]
 
+const THEME_OPTIONS = [
+  ['auto',  'Match device'],
+  ['light', 'Daylight Garden'],
+  ['dark',  'Lantern Night'],
+  ['hero',  'Crimson Hour'],
+]
+
 export default function Settings() {
-  const navigate = useNavigate()
   const [voice, setVoice]     = useState(() => localStorage.getItem('jerno-voice') || 'ja-JP-NanamiNeural')
   const [rate, setRate]       = useState(() => localStorage.getItem('jerno-speech-rate') || '1.0')
   const [autoPlay, setAutoPlay] = useState(() => (localStorage.getItem('jerno-autoplay') || 'true') === 'true')
   const [goal, setGoal]       = useState(() => localStorage.getItem('jerno-daily-goal') || 'regular')
   const [kidMode, setKidMode] = useState(() => localStorage.getItem('jerno-kid-mode') === 'true')
+  const [theme, setThemeChoice] = useState(() => getTheme())
+  const [prog, setProg] = useState(null)
+
+  useEffect(() => {
+    getProgressData().then(setProg).catch(() => { /* identity header is best-effort */ })
+  }, [])
+
+  function pickTheme(val) {
+    setTheme(val)
+    setThemeChoice(val)
+  }
 
   function set(key, val, setter) { localStorage.setItem(key, val); setter(val) }
 
+  const rank = rankFor(prog?.xp ?? 0)
+
   return (
     <div className="settings-screen">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-        <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', color: 'var(--text)', fontSize: 20, cursor: 'pointer' }}>←</button>
-        <h1 style={{ fontSize: 20, fontWeight: 700 }}>Settings</h1>
+      {/* identity header — who you are on the torii path */}
+      <div className="you-header">
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="jn-eyebrow" style={{ marginBottom: 7 }}>You</div>
+          <Rank jp={rank.name} en={rank.en} />
+        </div>
+        <Chip style={{ background: 'var(--gold-soft)', color: 'var(--gold)' }}>
+          {prog?.xp ?? 0} XP
+        </Chip>
+        <StreakPill count={prog?.streak?.current ?? 0} />
+      </div>
+
+      <div className="settings-section">
+        <h2>Appearance</h2>
+        {THEME_OPTIONS.map(([val, lbl]) => (
+          <div key={val} className="settings-row" style={{ cursor: 'pointer' }} onClick={() => pickTheme(val)}>
+            <label style={{ cursor: 'pointer' }}>{lbl}</label>
+            <span className={'settings-radio' + (theme === val ? ' on' : '')}>{theme === val ? '●' : '○'}</span>
+          </div>
+        ))}
       </div>
 
       <div className="settings-section">
         <h2>Speech</h2>
         <div className="settings-row">
           <label>Voice</label>
-          <select value={voice} onChange={e => set('jerno-voice', e.target.value, setVoice)}
-            style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '4px 8px' }}>
+          <select value={voice} onChange={e => set('jerno-voice', e.target.value, setVoice)}>
             {VOICES.map(v => <option key={v.id} value={v.id}>{v.label}</option>)}
           </select>
         </div>
         <div className="settings-row">
           <label>Speed</label>
-          <select value={rate} onChange={e => set('jerno-speech-rate', e.target.value, setRate)}
-            style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '4px 8px' }}>
+          <select value={rate} onChange={e => set('jerno-speech-rate', e.target.value, setRate)}>
             <option value="0.75">Slow (0.75×)</option>
             <option value="1.0">Normal (1.0×)</option>
             <option value="1.25">Fast (1.25×)</option>
@@ -54,7 +91,7 @@ export default function Settings() {
         {[['chill','Chill (5 min/day)'],['regular','Regular (10 min/day)'],['serious','Serious (20 min/day)']].map(([val, lbl]) => (
           <div key={val} className="settings-row" style={{ cursor: 'pointer' }} onClick={() => set('jerno-daily-goal', val, setGoal)}>
             <label style={{ cursor: 'pointer' }}>{lbl}</label>
-            <span style={{ color: goal === val ? 'var(--accent)' : 'var(--text-muted)' }}>{goal === val ? '●' : '○'}</span>
+            <span className={'settings-radio' + (goal === val ? ' on' : '')}>{goal === val ? '●' : '○'}</span>
           </div>
         ))}
       </div>
@@ -64,7 +101,7 @@ export default function Settings() {
         <div className="settings-row">
           <div>
             <label style={{ display: 'block' }}>Kid Mode</label>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>3 choices, no timers, bigger tiles</span>
+            <span className="settings-hint">3 choices, no timers, bigger tiles</span>
           </div>
           <div
             className={`toggle ${kidMode ? 'active' : ''}`}
@@ -76,7 +113,7 @@ export default function Settings() {
 
       <div className="settings-section">
         <h2>About</h2>
-        <div className="settings-row"><label>Version</label><span style={{ color: 'var(--text-muted)' }}>0.2.0</span></div>
+        <div className="settings-row"><label>Version</label><span className="settings-hint">0.2.0</span></div>
       </div>
     </div>
   )

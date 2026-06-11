@@ -2,9 +2,13 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { tts } from '../api.js'
 import { allItems } from '../content/index.js'
-import { grade as gradeSRS, initialState, isDue, STAGE_EMOJI } from '../data/srs.js'
+import { grade as gradeSRS, initialState, isDue } from '../data/srs.js'
 import { getSRSMap, saveSRSState } from '../data/store.js'
 import { awardEvent } from '../data/progress.js'
+import { Plant, NavIco } from '../design/primitives.jsx'
+
+// SRS stage name → Plant growth-stage index (seed → sprout → bamboo → blossom)
+const STAGE_IDX = { seed: 0, sprout: 1, bamboo: 2, blossom: 3 }
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -257,7 +261,7 @@ function EchoBooth() {
     const stageUps = results.filter(r => r.after.stage !== r.before.stage && r.after.step > r.before.step)
     return (
       <div className="speaking-end">
-        <div className="session-end-emoji">🎙️</div>
+        <Plant stage={3} size={56} />
         <h2>Echo session done!</h2>
         <p className="today-card-sub">
           {results.length} phrase{results.length === 1 ? '' : 's'} practiced
@@ -267,12 +271,16 @@ function EchoBooth() {
             {stageUps.map((r, i) => (
               <div className="stageup-row" key={`${r.item.id}-${i}`}>
                 <span className="ja">{r.item.ja}</span>
-                <span>{STAGE_EMOJI[r.before.stage]} → {STAGE_EMOJI[r.after.stage]}</span>
+                <span className="stage-shift">
+                  <Plant stage={STAGE_IDX[r.before.stage] ?? 0} size={22} />
+                  <NavIco name="arrowR" size={14} />
+                  <Plant stage={STAGE_IDX[r.after.stage] ?? 0} size={22} />
+                </span>
               </div>
             ))}
           </div>
         )}
-        <button type="button" className="btn-primary" onClick={() => navigate('/learn')}>
+        <button type="button" className="jn-btn jn-btn--green" onClick={() => navigate('/learn')}>
           Back to Learn
         </button>
       </div>
@@ -301,9 +309,9 @@ function EchoBooth() {
           onTouchEnd={(e) => { e.preventDefault(); stopRecorder() }}
           aria-label="Hold to record"
         >
-          🎙
+          <NavIco name="mic" size={32} />
         </button>
-        <div className="today-card-sub" style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+        <div className="today-card-sub" style={{ fontSize: 12, color: 'var(--muted)' }}>
           {recording ? 'Recording… release to stop' : 'Hold to record'}
         </div>
         {recordingUrl && (
@@ -404,10 +412,10 @@ function MinimalPairDojo() {
         : 'Tricky sounds — they get easier with reps 💪'
     return (
       <div className="speaking-end">
-        <div className="session-end-emoji">🥋</div>
+        <Plant stage={score === round.length ? 3 : 2} size={56} />
         <h2>{score} / {round.length}</h2>
         <p className="today-card-sub">{message}</p>
-        <button type="button" className="btn-primary" onClick={restart}>
+        <button type="button" className="jn-btn jn-btn--green" onClick={restart}>
           Another round
         </button>
       </div>
@@ -461,9 +469,14 @@ export default function SpeakingLab() {
   return (
     <div className="speaking-screen">
       <div className="speaking-header">
-        <button type="button" className="arcade-back" onClick={() => navigate('/learn')}>
-          ← Speaking Lab
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button type="button" className="arcade-back" style={{ marginBottom: 0 }}
+            onClick={() => navigate('/learn')} aria-label="Back">←</button>
+          <div>
+            <div className="jn-eyebrow" style={{ color: 'var(--red)' }}>Speak</div>
+            <div className="jn-display" style={{ fontSize: 21, marginTop: 2 }}>Speaking Lab</div>
+          </div>
+        </div>
         <div className="speaking-tabs">
           <button type="button" className={`speaking-tab ${tab === 'echo' ? 'active' : ''}`}
             onClick={() => setTab('echo')}>

@@ -1,11 +1,16 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { tts } from '../api.js'
-import { allItems, itemsByUnit, UNITS_ORDER, UNIT_NAMES } from '../content/index.js'
-import { grade as gradeSRS, isDue, STAGE_EMOJI } from '../data/srs.js'
+import { allItems, itemsByUnit, UNITS_ORDER } from '../content/index.js'
+import { grade as gradeSRS, isDue } from '../data/srs.js'
 import { buildSession } from '../data/session.js'
 import { getSRSMap, saveSRSState, getProfile, getTripDeckItems } from '../data/store.js'
 import { awardEvent, getProgressData, buildQuests, rankFor } from '../data/progress.js'
+import { Inu, Plant, NavIco, Rank } from '../design/primitives.jsx'
+import { Card, Chip, StreakPill, PileRing, Quest, DoorTile, TripDeckRow } from '../design/ui.jsx'
+
+// SRS stage name → Plant growth-stage index (seed → sprout → bamboo → blossom)
+const STAGE_IDX = { seed: 0, sprout: 1, bamboo: 2, blossom: 3 }
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -123,7 +128,9 @@ function IntroExercise({ item, onGotIt, onRepeat, audio }) {
 
   return (
     <div className="exercise-card">
-      <div className="exercise-prompt">New {item.type === 'kana' ? 'kana' : 'phrase'} 🌱</div>
+      <div className="exercise-prompt" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        New {item.type === 'kana' ? 'kana' : 'phrase'} <Plant stage={0} size={15} />
+      </div>
       {item.type === 'kana'
         ? <div className="kana-display">{item.glyph}</div>
         : <div className="exercise-ja">{item.ja}</div>}
@@ -534,6 +541,7 @@ export default function Learn() {
   const [lastEarnedXp, setLastEarnedXp] = useState(0)
   const srsMapRef = useRef(new Map())
   const resultsRef = useRef([])
+  const requeuedRef = useRef(new Set()) // item IDs already re-queued this session
   const audio = useTTSAudio()
 
   const reload = useCallback(async () => {
@@ -556,11 +564,11 @@ export default function Learn() {
   const now = Date.now()
   const states = srsMap ? [...srsMap.values()] : []
   const started = states.filter(s => s.stage !== 'seed')
-  const dueNow = started.filter(s => isDue(s, now)).length
+  const dueStates = started.filter(s => isDue(s, now))
+  const dueNow = dueStates.length
   const dueTomorrow = started.filter(
     s => !isDue(s, now) && s.due <= now + 24 * 60 * 60 * 1000
   ).length
-  const learnedCount = started.length
 
   const activeUnit = useMemo(() => {
     if (profile.activeUnit && itemsByUnit[profile.activeUnit]) return profile.activeUnit
@@ -576,13 +584,6 @@ export default function Learn() {
   }, [profile, srsMap])
 
   const unitItems = itemsByUnit[activeUnit] || []
-  const unitStarted = unitItems.filter(it => {
-    const s = srsMap?.get(it.id)
-    return s && s.stage !== 'seed'
-  }).length
-  const unitPct = unitItems.length
-    ? Math.round((unitStarted / unitItems.length) * 100)
-    : 0
 
   // --- session control ---
   const startSession = useCallback((kind) => {
@@ -594,6 +595,7 @@ export default function Learn() {
     setSession(exercises)
     setIndex(0)
     resultsRef.current = []
+    requeuedRef.current = new Set()
     setResults([])
     setLastEarnedXp(0)
     setMode('session')
@@ -627,12 +629,25 @@ export default function Learn() {
   const handleGrade = useCallback(async (gradeValue) => {
     const ex = session[index]
     if (!ex) return
+    if (ex.requeued) {
+      // Second-chance attempt: SRS was already graded (as a miss) on the first
+      // encounter, and the result was already recorded for XP/stage-ups.
+      // This pass is practice only — just move on.
+      advance()
+      return
+    }
     const before = srsMapRef.current.get(ex.item.id) || ex.srsState
     const after = gradeSRS(before, gradeValue)
     srsMapRef.current.set(after.id, after)
     const newResults = [...resultsRef.current, { item: ex.item, before, after }]
     resultsRef.current = newResults
     setResults(newResults)
+    // Missed it? Re-queue the same exercise at the end of the session for
+    // another attempt — but only once per item, to avoid endless loops.
+    if (gradeValue === 'not-yet' && !requeuedRef.current.has(ex.item.id)) {
+      requeuedRef.current.add(ex.item.id)
+      setSession(s => [...s, { ...ex, requeued: true }])
+    }
     advance()
     try {
       await saveSRSState(after)
@@ -707,126 +722,192 @@ export default function Learn() {
   if (mode === 'done') {
     const stageUps = results.filter(r => r.after.stage !== r.before.stage && r.after.step > r.before.step)
     const gotIt = results.filter(r => r.after.lastGrade === 'got-it').length
+    const rank = progState ? rankFor(progState.xp) : null
     return (
       <div className="session-end">
-        <div className="session-end-emoji">🌸</div>
+        <Plant stage={3} size={64} />
         <h2>Session complete!</h2>
         <p className="today-card-sub">
           {results.length} item{results.length === 1 ? '' : 's'} reviewed · {gotIt} correct
         </p>
         {lastEarnedXp > 0 && (
-          <div className="session-xp">+{lastEarnedXp} XP ✨</div>
+          <div className="session-xp">+{lastEarnedXp} XP</div>
         )}
-        {progState && (
-          <div className="session-rank">
-            {rankFor(progState.xp).name} · {rankFor(progState.xp).en}
-          </div>
-        )}
+        {rank && <Rank jp={rank.name} en={rank.en} />}
         {stageUps.length > 0 && (
           <div className="stageups">
             {stageUps.map((r, i) => (
               <div className="stageup-row" key={`${r.item.id}-${i}`}>
                 <span className="ja">{r.item.glyph || r.item.ja}</span>
-                <span>{STAGE_EMOJI[r.before.stage]} → {STAGE_EMOJI[r.after.stage]}</span>
+                <span className="stage-shift">
+                  <Plant stage={STAGE_IDX[r.before.stage] ?? 0} size={22} />
+                  <NavIco name="arrowR" size={14} />
+                  <Plant stage={STAGE_IDX[r.after.stage] ?? 0} size={22} />
+                </span>
               </div>
             ))}
           </div>
         )}
-        <button type="button" className="btn-primary" onClick={() => setMode('idle')}>
+        <button type="button" className="jn-btn jn-btn--green" onClick={() => setMode('idle')}>
           Back to Today
         </button>
       </div>
     )
   }
 
-  // idle — Today view
+  // idle — the "One Thing" home (per the design handoff's HomeOneThing)
+
+  // Greeting + date (real, time-aware)
+  const nowDate = new Date()
+  const hour = nowDate.getHours()
+  const greeting = hour < 12 ? 'おはよう' : hour < 18 ? 'こんにちは' : 'こんばんは'
+  const dateLabel = `${nowDate.toLocaleDateString('en-US', { weekday: 'long' })} · ${nowDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}`
+  const learnerName = profile.name || 'everyone'
+
+  // Session estimate — mirror how buildSession assembles the pile:
+  // due reviews (cap 20) + the day's new-item ration, clipped to the session limit.
+  const goalKey = localStorage.getItem('jerno-daily-goal') || 'regular'
+  const newPerDay = GOAL_NEW_PER_DAY[goalKey] ?? 5
+  const kidMode = localStorage.getItem('jerno-kid-mode') === 'true'
+  const sessionLimit = kidMode ? 10 : 14
+  const countNew = (items) => items.filter(it => {
+    const s = srsMap.get(it.id)
+    return !s || s.stage === 'seed'
+  }).length
+  const tripIds = new Set(tripItems.map(i => i.id))
+  const newAvailable = countNew(unitItems.filter(it => !tripIds.has(it.id))) + countNew(tripItems)
+  const sessReviews = Math.min(dueNow, 20, sessionLimit)
+  const sessFresh = Math.min(newPerDay, newAvailable, sessionLimit - sessReviews)
+  const sessionSize = sessReviews + sessFresh
+  const etaMin = Math.max(1, Math.ceil((sessionSize * 25) / 60))
+  const pileFrac = Math.min(1, dueNow / 30)
+  const caughtUp = dueNow === 0 && newAvailable === 0
+
+  // Growth-stage glyph row — one Plant per item in today's pile (cap 8):
+  // the day's new words as seeds + the due reviews at their real stages.
+  const plantStages = [
+    ...Array(Math.max(0, sessFresh)).fill(0),
+    ...dueStates.map(s => STAGE_IDX[s.stage] ?? 0).sort((a, b) => a - b),
+  ].slice(0, 8)
+
+  // Quests — saved quests if they're today's, else build today's set
+  const todayISO = new Date().toISOString().slice(0, 10)
+  const q = progState
+    ? (progState.quests?.date === todayISO ? progState.quests : buildQuests(todayISO, progState))
+    : null
+  const quests = q ? [
+    { key: 'q1', icon: 'cards',  label: q.q1label || 'Clear your review pile',  done: !!q.q1 },
+    { key: 'q2', icon: 'bolt',   label: q.q2label || 'Practice today',          done: !!q.q2 },
+    { key: 'q3', icon: 'family', label: q.q3label || 'Help a family member',    done: !!q.q3 },
+  ] : []
+
+  // Trip deck — items whose SRS stage is bamboo are "about to blossom"
+  const tripBlooming = tripItems.filter(it => srsMap.get(it.id)?.stage === 'bamboo').length
+
   return (
-    <div className="learn-today">
-      <Link to="/settings" className="settings-gear" aria-label="Settings">⚙</Link>
-      <h1 className="learn-title">Today</h1>
+    <div className="jn jn-screen" style={{ minHeight: 'calc(100vh - 72px)', height: 'auto', overflow: 'visible' }}>
+      <div className="jn-pad" style={{ paddingTop: 16, paddingBottom: 20, display: 'flex', flexDirection: 'column',
+        gap: 16, flex: 1, width: '100%', maxWidth: 480, margin: '0 auto' }}>
 
-      <div className="today-card">
-        {dueNow > 0 ? (
-          <>
-            <div className="today-card-big">🔔 {dueNow} to review</div>
-            <button type="button" className="btn-primary" onClick={() => startSession('review')}>
-              Start Review
-            </button>
-          </>
-        ) : (
-          <>
-            <div className="today-card-big">All caught up! 🌸</div>
-            <p className="today-card-sub">
-              {dueTomorrow > 0
-                ? `${dueTomorrow} review${dueTomorrow === 1 ? '' : 's'} due tomorrow`
-                : 'Nothing due tomorrow yet'}
-            </p>
-          </>
-        )}
-      </div>
-
-      <div className="today-card">
-        <div className="today-card-row">
-          <span className="unit-name">{UNIT_NAMES[activeUnit] || activeUnit}</span>
-          <span className="unit-pct">{unitStarted} / {unitItems.length}</span>
-        </div>
-        <div className="unit-progress-bar">
-          <div className="unit-progress-fill" style={{ width: `${unitPct}%` }} />
-        </div>
-        <button type="button" className="btn-primary" onClick={() => startSession('continue')}>
-          Continue
-        </button>
-      </div>
-
-      <div className="shortcut-row">
-        <button type="button" className="btn-secondary shortcut-btn" onClick={() => navigate('/arcade')}>
-          🕹 Arcade
-        </button>
-        <button type="button" className="btn-secondary shortcut-btn" onClick={() => navigate('/speaking')}>
-          🎙 Speaking Lab
-        </button>
-      </div>
-
-      {/* Daily quests */}
-      {progState && (() => {
-        const today = new Date().toISOString().slice(0, 10)
-        const q = progState.quests?.date === today
-          ? progState.quests
-          : buildQuests(today, progState)
-        return (
-          <div className="quests-section">
-            <div className="quests-title">Today's Quests</div>
-            {[
-              { key: 'q1', label: q.q1label || 'Clear your review pile', done: q.q1 },
-              { key: 'q2', label: q.q2label || 'Practice today', done: q.q2 },
-              { key: 'q3', label: q.q3label || 'Help a family member', done: q.q3 },
-            ].map(quest => (
-              <div key={quest.key} className={`quest-row ${quest.done ? 'done' : ''}`}>
-                <span className="quest-check">{quest.done ? '✅' : '⬜'}</span>
-                <span className="quest-label">{quest.label}</span>
-              </div>
-            ))}
+        {/* 1 · header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+          <Inu size={42} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="jn-eyebrow" style={{ fontSize: 10.5 }}>{dateLabel}</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+              <span className="jn-jp" style={{ fontFamily: 'var(--f-display)', fontWeight: 700, fontSize: 23 }}>{greeting}</span>
+              <span style={{ fontSize: 14, color: 'var(--muted)', fontWeight: 600 }}>{learnerName}</span>
+            </div>
           </div>
-        )
-      })()}
+          <StreakPill count={progState?.streak?.current ?? 0} />
+        </div>
 
-      <div className="learn-stats">
-        <div className="stat">
-          <div className="stat-num">{learnedCount}</div>
-          <div className="stat-label">Learned</div>
+        {/* 2 · the one thing */}
+        <div style={{ background: 'var(--primary)', borderRadius: 26, padding: '22px 22px 20px', color: 'var(--on-primary)',
+          boxShadow: '0 14px 30px color-mix(in srgb, var(--primary) 34%, transparent)', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.6, textTransform: 'uppercase', opacity: 0.85 }}>Today’s session</span>
+            {!caughtUp && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5, fontWeight: 700, opacity: 0.9 }}>
+                <NavIco name="clock" size={15} /> ~{etaMin} min
+              </span>
+            )}
+          </div>
+          {caughtUp ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 12 }}>
+              <Plant stage={3} size={56} color="var(--on-primary)" bloom="#fff" />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: 'var(--f-display)', fontWeight: 700, fontSize: 20, lineHeight: 1.1 }}>all caught up</div>
+                <div style={{ fontSize: 13, opacity: 0.9, marginTop: 5, fontWeight: 600 }}>
+                  {dueTomorrow > 0
+                    ? `${dueTomorrow} review${dueTomorrow === 1 ? '' : 's'} ready tomorrow`
+                    : 'your garden is resting — see you tomorrow'}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 12 }}>
+                <PileRing count={sessionSize} frac={pileFrac} ink="var(--on-primary)" />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: 'var(--f-display)', fontWeight: 700, fontSize: 20, lineHeight: 1.1 }}>ready to review</div>
+                  <div style={{ fontSize: 13, opacity: 0.9, marginTop: 5, fontWeight: 600 }}>
+                    {sessReviews > 0 && `${sessReviews} due review${sessReviews === 1 ? '' : 's'}`}
+                    {sessReviews > 0 && sessFresh > 0 && ' + '}
+                    {sessFresh > 0 && `${sessFresh} new word${sessFresh === 1 ? '' : 's'}`}
+                  </div>
+                  <div style={{ display: 'flex', gap: 4, marginTop: 9 }}>
+                    {plantStages.map((st, i) =>
+                      <Plant key={i} stage={st} size={17} color="var(--on-primary)" bloom="#fff" />)}
+                  </div>
+                </div>
+              </div>
+              <button type="button" className="jn-btn jn-btn--block"
+                onClick={() => startSession(sessFresh > 0 ? 'continue' : 'review')}
+                style={{ marginTop: 16, background: 'var(--on-primary)', color: 'var(--primary)', fontSize: 16.5 }}>
+                <NavIco name="play" size={19} /> Start session
+              </button>
+            </>
+          )}
         </div>
-        <div className="stat">
-          <div className="stat-num">{progState?.streak?.current ?? 0}</div>
-          <div className="stat-label">Day streak 🔥</div>
+
+        {/* 3 · quests */}
+        {quests.length > 0 && (
+          <Card style={{ padding: '15px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 11 }}>
+              <span className="jn-eyebrow">Today’s quests · everyone</span>
+              <span style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--green)' }}>
+                {quests.filter(x => x.done).length} / {quests.length}
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+              {quests.map(x => <Quest key={x.key} icon={x.icon} label={x.label} done={x.done} />)}
+            </div>
+          </Card>
+        )}
+
+        {/* 4 · two quiet doors */}
+        <div style={{ display: 'flex', gap: 12 }}>
+          <DoorTile color="var(--sky)" soft="var(--sky-soft)" icon="translate"
+            title="Translate" sub="& show a card" onClick={() => navigate('/translate')} />
+          <DoorTile color="var(--pink)" soft="var(--pink-soft)" icon="arcade"
+            title="Kana Arcade" sub="4 games" onClick={() => navigate('/arcade')} />
         </div>
-        <div className="stat">
-          <div className="stat-num">{progState?.xp ?? 0}</div>
-          <div className="stat-label">{progState ? rankFor(progState.xp).name : '旅人'}</div>
+
+        {/* Speaking Lab shortcut (kept from the old Today view) */}
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <Chip onClick={() => navigate('/speaking')} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
+            <NavIco name="mic" size={15} /> Speaking Lab
+          </Chip>
         </div>
+
+        {/* 5 · trip-deck whisper */}
         {tripItems.length > 0 && (
-          <div className="stat">
-            <div className="stat-num">{tripItems.length}</div>
-            <div className="stat-label">Trip ⭐</div>
+          <div style={{ marginTop: 'auto' }}>
+            {/* TODO: a dedicated trip-deck screen is future work — for now this
+                starts a review session, where trip items are prioritized first. */}
+            <TripDeckRow deck={tripItems.length} blooming={tripBlooming}
+              onClick={() => startSession('review')} />
           </div>
         )}
       </div>
