@@ -1,0 +1,97 @@
+[
+  {
+    "id": "phrase-yoroshiku", "type": "phrase", "ja": "よろしくお願いします", "reading": "よろしくおねがいします", "romaji": "yoroshiku onegaishimasu", "en": "Nice to meet you / Please take care of me", "unit": "u5-politeness",
+    "notes": "Said when meeting someone or asking a favor. One of the most versatile phrases in Japanese.",
+    "segments": [
+      {"ja":"よろしく","reading":"よろしく","romaji":"yoroshiku","en":"kindly"},
+      {"ja":"お願いします","reading":"おねがいします","romaji":"onegaishimasu","en":"please"}
+    ]
+  },
+  {
+    "id": "phrase-ojamashimasu", "type": "phrase", "ja": "お邪魔します", "reading": "おじゃまします", "romaji": "ojama shimasu", "en": "Excuse me for intruding (entering someone's home)", "unit": "u5-politeness",
+    "notes": "Said when entering someone's home or office. Literally 'I will be a nuisance.' Very important to say.",
+    "segments": [
+      {"ja":"お邪魔","reading":"おじゃま","romaji":"ojama","en":"intrude"},
+      {"ja":"します","reading":"します","romaji":"shimasu","en":"(do)"}
+    ]
+  },
+  {
+    "id": "phrase-osewa", "type": "phrase", "ja": "お世話になっています", "reading": "おせわになっています", "romaji": "osewa ni natte imasu", "en": "Thank you for your continued support", "unit": "u5-politeness",
+    "notes": "Said to someone who has been helping you — a host, guide, or business contact. Very appreciated.",
+    "segments": [
+      {"ja":"お世話に","reading":"おせわに","romaji":"osewa ni","en":"taking care"},
+      {"ja":"なっています","reading":"なっています","romaji":"natte imasu","en":"have become"}
+    ]
+  },
+  {
+    "id": "phrase-moushiwake", "type": "phrase", "ja": "申し訳ございません", "reading": "もうしわけございません", "romaji": "moushiwake gozaimasen", "en": "I am truly sorry (formal apology)", "unit": "u5-politeness",
+    "notes": "A deep, sincere apology. More formal than すみません. Use when you've caused real inconvenience.",
+    "segments": [
+      {"ja":"申し訳","reading":"もうしわけ","romaji":"moushiwake","en":"no excuse"},
+      {"ja":"ございません","reading":"ございません","romaji":"gozaimasen","en":"(formal neg.)"}
+    ]
+  },
+  {
+    "id": "phrase-otearai", "type": "phrase", "ja": "お手洗いはどこですか？", "reading": "おてあらいはどこですか", "romaji": "otearai wa doko desu ka", "en": "Where is the restroom? (polite)", "unit": "u5-politeness",
+    "notes": "Slightly more polite than トイレ. Both are understood everywhere.",
+    "segments": [
+      {"ja":"お手洗いは","reading":"おてあらいは","romaji":"otearai wa","en":"restroom"},
+      {"ja":"どこ","reading":"どこ","romaji":"doko","en":"where"},
+      {"ja":"ですか","reading":"ですか","romaji":"desu ka","en":"is it?"}
+    ]
+  },
+  {
+    "id": "phrase-onamae", "type": "phrase", "ja": "お名前は何ですか？", "reading": "おなまえはなんですか", "romaji": "onamae wa nan desu ka", "en": "What is your name?", "unit": "u5-politeness",
+    "segments": [
+      {"ja":"お名前は","reading":"おなまえは","romaji":"onamae wa","en":"your name"},
+      {"ja":"何ですか","reading":"なんですか","romaji":"nan desu ka","en":"what is?"}
+    ]
+  },
+  {
+    "id": "phrase-nihongo", "type": "phrase", "ja": "日本語が少し話せます", "reading": "にほんごがすこしはなせます", "romaji": "nihongo ga sukoshi hanasemasu", "en": "I can speak a little Japanese", "unit": "u5-politeness",
+    "notes": "Say this and watch people's faces light up. They'll slow down and use simpler words.",
+    "segments": [
+      {"ja":"日本語が","reading":"にほんごが","romaji":"nihongo ga","en":"Japanese"},
+      {"ja":"少し","reading":"すこし","romaji":"sukoshi","en":"a little"},
+      {"ja":"話せます","reading":"はなせます","romaji":"hanasemasu","en":"can speak"}
+    ]
+  },
+  {
+    "id": "phrase-yukkuri", "type": "phrase", "ja": "もう少しゆっくり話してください", "reading": "もうすこしゆっくりはなしてください", "romaji": "mou sukoshi yukkuri hanashite kudasai", "en": "Please speak a little more slowly", "unit": "u5-politeness",
+    "notes": "Essential. People will happily slow down for you.",
+    "segments": [
+      {"ja":"もう少し","reading":"もうすこし","romaji":"mou sukoshi","en":"a little more"},
+      {"ja":"ゆっくり","reading":"ゆっくり","romaji":"yukkuri","en":"slowly"},
+      {"ja":"話してください","reading":"はなしてください","romaji":"hanashite kudasai","en":"please speak"}
+    ]
+  },
+  {
+    "id": "phrase-mouichido", "type": "phrase", "ja": "もう一度お願いします", "reading": "もういちどおねがいします", "romaji": "mou ichido onegaishimasu", "en": "One more time, please", "unit": "u5-politeness",
+    "segments": [
+      {"ja":"もう一度","reading":"もういちど","romaji":"mou ichido","en":"one more time"},
+      {"ja":"お願いします","reading":"おねがいします","romaji":"onegaishimasu","en":"please"}
+    ]
+  },
+  {
+    "id": "phrase-kaite", "type": "phrase", "ja": "書いてもらえますか？", "reading": "かいてもらえますか", "romaji": "kaite moraemasu ka", "en": "Could you write it down?", "unit": "u5-politeness",
+    "notes": "When you can't understand the spoken word, see it written instead.",
+    "segments": [
+      {"ja":"書いて","reading":"かいて","romaji":"kaite","en":"write"},
+      {"ja":"もらえますか","reading":"もらえますか","romaji":"moraemasu ka","en":"could you?"}
+    ]
+  },
+  {
+    "id": "phrase-kansha", "type": "phrase", "ja": "本当にありがとうございます", "reading": "ほんとうにありがとうございます", "romaji": "hontouni arigatou gozaimasu", "en": "Thank you so very much", "unit": "u5-politeness",
+    "notes": "ほんとうに = truly/really. Use for genuine, heartfelt gratitude.",
+    "segments": [
+      {"ja":"本当に","reading":"ほんとうに","romaji":"hontouni","en":"truly"},
+      {"ja":"ありがとう","reading":"ありがとう","romaji":"arigatou","en":"thank you"},
+      {"ja":"ございます","reading":"ございます","romaji":"gozaimasu","en":"(formal)"}
+    ]
+  },
+  {
+    "id": "phrase-oyasumi", "type": "phrase", "ja": "おやすみなさい", "reading": "おやすみなさい", "romaji": "oyasuminasai", "en": "Good night", "unit": "u5-politeness",
+    "notes": "Said when parting for the night or before sleep. Casual form: おやすみ.",
+    "segments": [{"ja":"おやすみなさい","reading":"おやすみなさい","romaji":"oyasuminasai","en":"good night"}]
+  }
+]

@@ -4,6 +4,7 @@ import { grade, initialState, STAGE_EMOJI } from '../data/srs.js'
 import { getSRSState, saveSRSState, getSRSMap } from '../data/store.js'
 import { itemsByUnit } from '../content/index.js'
 import { tts } from '../api.js'
+import { awardEvent } from '../data/progress.js'
 
 // ---------------------------------------------------------------------------
 // Shared constants + helpers
@@ -186,7 +187,7 @@ function CelebrateBanner({ show, streak }) {
   )
 }
 
-function EndCard({ heading = 'Round over!', lines = [], stageUps = [], onReplay, replayLabel = 'Play again', onExit, exitLabel = 'Back' }) {
+function EndCard({ heading = 'Round over!', lines = [], stageUps = [], onReplay, replayLabel = 'Play again', onExit, exitLabel = 'Back', earnedXp = 0 }) {
   return (
     <div className="arcade-end-card">
       <h2>{heading}</h2>
@@ -201,7 +202,9 @@ function EndCard({ heading = 'Round over!', lines = [], stageUps = [], onReplay,
           ))}
         </div>
       )}
-      <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '12px 0' }}>✨ XP coming soon</p>
+      {earnedXp > 0
+        ? <p style={{ color: 'var(--accent)', fontSize: 15, fontWeight: 700, margin: '12px 0' }}>+{earnedXp} XP ✨</p>
+        : null}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
         {onReplay && <button className="btn-primary" onClick={onReplay}>{replayLabel}</button>}
         <button className="kana-choice-btn" onClick={onExit}>{exitLabel}</button>
@@ -237,6 +240,7 @@ function KanaPopGame({
   const [answered, setAnswered] = useState(0)
   const [correct, setCorrect] = useState(0)
   const [celebrate, setCelebrate] = useState(false)
+  const [earnedXp, setEarnedXp] = useState(0)
 
   const srsMapRef = useRef(null)
   const stageUpsRef = useRef([])
@@ -271,7 +275,10 @@ function KanaPopGame({
     endedRef.current = true
     setPhase('end')
     onRoundEnd?.()
-  }, [onRoundEnd])
+    awardEvent('arcade-round', { arcadeStreak: streak })
+      .then(r => setEarnedXp(r?.earnedXp ?? 0))
+      .catch(() => {})
+  }, [onRoundEnd, streak])
 
   const left = useCountdown(effectiveDuration, phase === 'play' && q != null, endRound)
 
@@ -318,6 +325,7 @@ function KanaPopGame({
           ]}
           stageUps={stageUpsRef.current}
           onExit={onExit}
+          earnedXp={earnedXp}
         />
       </div>
     )
@@ -510,6 +518,7 @@ function EchoTilesGame({ onExit }) {
   const [answered, setAnswered] = useState(0)
   const [correct, setCorrect] = useState(0)
   const [celebrate, setCelebrate] = useState(false)
+  const [earnedXp, setEarnedXp] = useState(0)
 
   const srsMapRef = useRef(null)
   const poolRef = useRef(KANA_POOL)
@@ -547,7 +556,10 @@ function EchoTilesGame({ onExit }) {
     if (endedRef.current) return
     endedRef.current = true
     setPhase('end')
-  }, [])
+    awardEvent('arcade-round', { arcadeStreak: streak })
+      .then(r => setEarnedXp(r?.earnedXp ?? 0))
+      .catch(() => {})
+  }, [streak])
 
   const left = useCountdown(effectiveDuration, phase === 'play' && q != null, endRound)
 
@@ -587,6 +599,7 @@ function EchoTilesGame({ onExit }) {
           lines={[`Score: ${score}`, `${correct} / ${answered} correct`]}
           stageUps={stageUpsRef.current}
           onExit={onExit}
+          earnedXp={earnedXp}
         />
       </div>
     )

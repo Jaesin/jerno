@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { tts } from '../api.js'
 import { allItems, itemsByUnit, UNITS_ORDER, UNIT_NAMES } from '../content/index.js'
 import { grade as gradeSRS, isDue, STAGE_EMOJI } from '../data/srs.js'
 import { buildSession } from '../data/session.js'
-import { getSRSMap, saveSRSState, getProfile } from '../data/store.js'
-import { awardEvent, getProgressData, rankFor } from '../data/progress.js'
+import { getSRSMap, saveSRSState, getProfile, getTripDeckItems } from '../data/store.js'
+import { awardEvent, getProgressData, buildQuests, rankFor } from '../data/progress.js'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -23,6 +23,9 @@ function shuffle(arr) {
 function spokenText(item) {
   return item.ja || item.glyph || ''
 }
+
+// Daily goal setting → number of new items introduced per session.
+const GOAL_NEW_PER_DAY = { chill: 3, regular: 5, serious: 8 }
 
 // Exercise types actually implemented in this screen.
 // Anything else falls back to flashcard / kana-pop.
@@ -519,6 +522,7 @@ function MatchFiveExercise({ item, onGrade, audio, session, sessionIndex }) {
 // ---------------------------------------------------------------------------
 
 export default function Learn() {
+  const navigate = useNavigate()
   const [mode, setMode] = useState('idle') // 'idle' | 'session' | 'done'
   const [srsMap, setSrsMap] = useState(null) // Map<itemId, state> | null while loading
   const [profile, setProfile] = useState({})
@@ -526,18 +530,20 @@ export default function Learn() {
   const [index, setIndex] = useState(0)
   const [results, setResults] = useState([])
   const [progState, setProgState] = useState(null)
+  const [tripItems, setTripItems] = useState([])
+  const [lastEarnedXp, setLastEarnedXp] = useState(0)
   const srsMapRef = useRef(new Map())
   const resultsRef = useRef([])
-  const prevXpRef = useRef(0)
   const audio = useTTSAudio()
 
   const reload = useCallback(async () => {
     try {
-      const [map, prof, prog] = await Promise.all([getSRSMap(), getProfile(), getProgressData()])
+      const [map, prof, prog, tripItems] = await Promise.all([getSRSMap(), getProfile(), getProgressData(), getTripDeckItems()])
       srsMapRef.current = map
       setSrsMap(map)
       setProfile(prof)
       setProgState(prog)
+      setTripItems(tripItems)
     } catch {
       srsMapRef.current = new Map()
       setSrsMap(new Map())
@@ -580,28 +586,32 @@ export default function Learn() {
 
   // --- session control ---
   const startSession = useCallback((kind) => {
-    const prof = { ...profile, activeUnit }
+    const goalKey = localStorage.getItem('jerno-daily-goal') || 'regular'
+    const prof = { ...profile, activeUnit, newPerDay: GOAL_NEW_PER_DAY[goalKey] ?? 5 }
     if (kind === 'review') prof.newPerDay = 0
-    const exercises = buildSession(srsMapRef.current, prof)
+    const exercises = buildSession(srsMapRef.current, prof, Date.now(), tripItems)
     if (exercises.length === 0) return
     setSession(exercises)
     setIndex(0)
     resultsRef.current = []
     setResults([])
-    prevXpRef.current = progState?.xp ?? 0
+    setLastEarnedXp(0)
     setMode('session')
-  }, [profile, activeUnit, progState])
+  }, [profile, activeUnit, tripItems])
 
   const finishSession = useCallback(() => {
     setSrsMap(new Map(srsMapRef.current))
     setMode('done')
     const stageUps = resultsRef.current
-      .filter(r => r.after.stage !== r.before.stage && r.after.step > r.before.step)
-      .map(r => ({ from: r.before.stage, to: r.after.stage }))
+      .filter(r => r.after.stage !== r.before?.stage && r.after.step > (r.before?.step ?? 0))
+      .map(r => ({ from: r.before?.stage ?? 'seed', to: r.after.stage }))
     awardEvent('session', {
       exerciseCount: resultsRef.current.length,
       stageUps,
-    }).then(({ next }) => setProgState(next)).catch(() => {})
+    }).then(({ earnedXp, next }) => {
+      setProgState(next)
+      setLastEarnedXp(earnedXp)
+    }).catch(() => { /* never block */ })
   }, [])
 
   const advance = useCallback(() => {
@@ -704,9 +714,12 @@ export default function Learn() {
         <p className="today-card-sub">
           {results.length} item{results.length === 1 ? '' : 's'} reviewed · {gotIt} correct
         </p>
+        {lastEarnedXp > 0 && (
+          <div className="session-xp">+{lastEarnedXp} XP ✨</div>
+        )}
         {progState && (
-          <div className="session-xp">
-            +{Math.max(0, (progState.xp ?? 0) - (prevXpRef.current ?? 0))} XP · {rankFor(progState.xp).name} {rankFor(progState.xp).en}
+          <div className="session-rank">
+            {rankFor(progState.xp).name} · {rankFor(progState.xp).en}
           </div>
         )}
         {stageUps.length > 0 && (
@@ -765,6 +778,38 @@ export default function Learn() {
         </button>
       </div>
 
+      <div className="shortcut-row">
+        <button type="button" className="btn-secondary shortcut-btn" onClick={() => navigate('/arcade')}>
+          🕹 Arcade
+        </button>
+        <button type="button" className="btn-secondary shortcut-btn" onClick={() => navigate('/speaking')}>
+          🎙 Speaking Lab
+        </button>
+      </div>
+
+      {/* Daily quests */}
+      {progState && (() => {
+        const today = new Date().toISOString().slice(0, 10)
+        const q = progState.quests?.date === today
+          ? progState.quests
+          : buildQuests(today, progState)
+        return (
+          <div className="quests-section">
+            <div className="quests-title">Today's Quests</div>
+            {[
+              { key: 'q1', label: q.q1label || 'Clear your review pile', done: q.q1 },
+              { key: 'q2', label: q.q2label || 'Practice today', done: q.q2 },
+              { key: 'q3', label: q.q3label || 'Help a family member', done: q.q3 },
+            ].map(quest => (
+              <div key={quest.key} className={`quest-row ${quest.done ? 'done' : ''}`}>
+                <span className="quest-check">{quest.done ? '✅' : '⬜'}</span>
+                <span className="quest-label">{quest.label}</span>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+
       <div className="learn-stats">
         <div className="stat">
           <div className="stat-num">{learnedCount}</div>
@@ -772,12 +817,18 @@ export default function Learn() {
         </div>
         <div className="stat">
           <div className="stat-num">{progState?.streak?.current ?? 0}</div>
-          <div className="stat-label">Day streak</div>
+          <div className="stat-label">Day streak 🔥</div>
         </div>
         <div className="stat">
           <div className="stat-num">{progState?.xp ?? 0}</div>
-          <div className="stat-label">XP</div>
+          <div className="stat-label">{progState ? rankFor(progState.xp).name : '旅人'}</div>
         </div>
+        {tripItems.length > 0 && (
+          <div className="stat">
+            <div className="stat-num">{tripItems.length}</div>
+            <div className="stat-label">Trip ⭐</div>
+          </div>
+        )}
       </div>
     </div>
   )

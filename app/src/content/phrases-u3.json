@@ -1,0 +1,102 @@
+[
+  {
+    "id": "phrase-kore-kudasai", "type": "phrase", "ja": "これをください", "reading": "これをください", "romaji": "kore wo kudasai", "en": "This one, please", "unit": "u3-food",
+    "notes": "Point at the menu photo or another table's dish. Universally understood.",
+    "segments": [
+      {"ja":"これを","reading":"これを","romaji":"kore wo","en":"this"},
+      {"ja":"ください","reading":"ください","romaji":"kudasai","en":"please give me"}
+    ]
+  },
+  {
+    "id": "phrase-oishii", "type": "phrase", "ja": "おいしい！", "reading": "おいしい", "romaji": "oishii", "en": "Delicious!", "unit": "u3-food",
+    "notes": "One of the best compliments you can give. The chef will beam.",
+    "segments": [{"ja":"おいしい","reading":"おいしい","romaji":"oishii","en":"delicious"}]
+  },
+  {
+    "id": "phrase-menyuu", "type": "phrase", "ja": "メニューをください", "reading": "めにゅーをください", "romaji": "menyuu wo kudasai", "en": "Menu, please", "unit": "u3-food",
+    "segments": [
+      {"ja":"メニューを","reading":"めにゅーを","romaji":"menyuu wo","en":"menu"},
+      {"ja":"ください","reading":"ください","romaji":"kudasai","en":"please"}
+    ]
+  },
+  {
+    "id": "phrase-eigo-menyuu", "type": "phrase", "ja": "英語のメニューはありますか？", "reading": "えいごのめにゅーはありますか", "romaji": "eigo no menyuu wa arimasu ka", "en": "Do you have an English menu?", "unit": "u3-food",
+    "segments": [
+      {"ja":"英語の","reading":"えいごの","romaji":"eigo no","en":"English"},
+      {"ja":"メニューは","reading":"めにゅーは","romaji":"menyuu wa","en":"menu"},
+      {"ja":"ありますか","reading":"ありますか","romaji":"arimasu ka","en":"do you have?"}
+    ]
+  },
+  {
+    "id": "phrase-okaikei", "type": "phrase", "ja": "お会計をお願いします", "reading": "おかいけいをおねがいします", "romaji": "okaikei wo onegaishimasu", "en": "Check, please", "unit": "u3-food",
+    "notes": "You can also mime writing to ask for the bill. In Japan you usually pay at the register.",
+    "segments": [
+      {"ja":"お会計を","reading":"おかいけいを","romaji":"okaikei wo","en":"the check"},
+      {"ja":"お願いします","reading":"おねがいします","romaji":"onegaishimasu","en":"please"}
+    ]
+  },
+  {
+    "id": "phrase-taberu", "type": "phrase", "ja": "食べられません", "reading": "たべられません", "romaji": "taberaremasen", "en": "I can't eat (it)", "unit": "u3-food",
+    "notes": "Follow with the ingredient: 〜が食べられません. For allergies, say アレルギーがあります (I have allergies).",
+    "segments": [
+      {"ja":"食べられ","reading":"たべられ","romaji":"taberare","en":"can eat"},
+      {"ja":"ません","reading":"ません","romaji":"masen","en":"(cannot)"}
+    ]
+  },
+  {
+    "id": "phrase-mizu", "type": "phrase", "ja": "お水をください", "reading": "おみずをください", "romaji": "omizu wo kudasai", "en": "Water, please", "unit": "u3-food",
+    "notes": "Water is usually free and given automatically. This is for when it isn't.",
+    "segments": [
+      {"ja":"お水を","reading":"おみずを","romaji":"omizu wo","en":"water"},
+      {"ja":"ください","reading":"ください","romaji":"kudasai","en":"please"}
+    ]
+  },
+  {
+    "id": "phrase-betsubetsu", "type": "phrase", "ja": "別々でお願いします", "reading": "べつべつでおねがいします", "romaji": "betsubetsu de onegaishimasu", "en": "Separate bills, please", "unit": "u3-food",
+    "segments": [
+      {"ja":"別々で","reading":"べつべつで","romaji":"betsubetsu de","en":"separately"},
+      {"ja":"お願いします","reading":"おねがいします","romaji":"onegaishimasu","en":"please"}
+    ]
+  },
+  {
+    "id": "phrase-kaado", "type": "phrase", "ja": "カードで払えますか？", "reading": "かーどではらえますか", "romaji": "kaado de haraemasu ka", "en": "Can I pay by card?", "unit": "u3-food",
+    "notes": "Cash (現金 genkin) is still king in many Japanese restaurants and small shops.",
+    "segments": [
+      {"ja":"カードで","reading":"かーどで","romaji":"kaado de","en":"by card"},
+      {"ja":"払えますか","reading":"はらえますか","romaji":"haraemasu ka","en":"can I pay?"}
+    ]
+  },
+  {
+    "id": "phrase-nominono", "type": "phrase", "ja": "飲み物は何がありますか？", "reading": "のみものはなにがありますか", "romaji": "nomimono wa nani ga arimasu ka", "en": "What drinks do you have?", "unit": "u3-food",
+    "segments": [
+      {"ja":"飲み物は","reading":"のみものは","romaji":"nomimono wa","en":"drinks"},
+      {"ja":"何が","reading":"なにが","romaji":"nani ga","en":"what"},
+      {"ja":"ありますか","reading":"ありますか","romaji":"arimasu ka","en":"do you have?"}
+    ]
+  },
+  {
+    "id": "phrase-seki", "type": "phrase", "ja": "禁煙席をお願いします", "reading": "きんえんせきをおねがいします", "romaji": "kin'enseki wo onegaishimasu", "en": "Non-smoking seat, please", "unit": "u3-food",
+    "segments": [
+      {"ja":"禁煙席を","reading":"きんえんせきを","romaji":"kinennseki wo","en":"non-smoking seat"},
+      {"ja":"お願いします","reading":"おねがいします","romaji":"onegaishimasu","en":"please"}
+    ]
+  },
+  {
+    "id": "phrase-futari", "type": "phrase", "ja": "二人です", "reading": "ふたりです", "romaji": "futari desu", "en": "Two people (party of 2)", "unit": "u3-food",
+    "notes": "When the host asks 何名様ですか (how many?). 一人 hitori = 1, 三人 sannin = 3, 四人 yonin = 4.",
+    "segments": [
+      {"ja":"二人","reading":"ふたり","romaji":"futari","en":"two people"},
+      {"ja":"です","reading":"です","romaji":"desu","en":"(polite is)"}
+    ]
+  },
+  {
+    "id": "phrase-itadakimasu", "type": "phrase", "ja": "いただきます", "reading": "いただきます", "romaji": "itadakimasu", "en": "I gratefully receive (said before eating)", "unit": "u3-food",
+    "notes": "Said before every meal. Not religious — it thanks the food, the cook, and the farmers. Kids love saying this one.",
+    "segments": [{"ja":"いただきます","reading":"いただきます","romaji":"itadakimasu","en":"I receive (before eating)"}]
+  },
+  {
+    "id": "phrase-gochisousama", "type": "phrase", "ja": "ごちそうさまでした", "reading": "ごちそうさまでした", "romaji": "gochisousama deshita", "en": "That was a feast (said after eating)", "unit": "u3-food",
+    "notes": "Said when leaving the table or paying. The staff will appreciate this enormously.",
+    "segments": [{"ja":"ごちそうさまでした","reading":"ごちそうさまでした","romaji":"gochisousama deshita","en":"thank you for the meal"}]
+  }
+]

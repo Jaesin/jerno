@@ -1,0 +1,80 @@
+[
+  {
+    "id": "phrase-kore-ikura", "type": "phrase", "ja": "これはいくらですか？", "reading": "これはいくらですか", "romaji": "kore wa ikura desu ka", "en": "How much is this?", "unit": "u6-shopping",
+    "notes": "Point and ask. A calculator will usually appear.",
+    "segments": [
+      {"ja":"これは","reading":"これは","romaji":"kore wa","en":"this"},
+      {"ja":"いくら","reading":"いくら","romaji":"ikura","en":"how much"},
+      {"ja":"ですか","reading":"ですか","romaji":"desu ka","en":"is it?"}
+    ]
+  },
+  {
+    "id": "phrase-fukuro", "type": "phrase", "ja": "袋はいりません", "reading": "ふくろはいりません", "romaji": "fukuro wa irimasen", "en": "I don't need a bag", "unit": "u6-shopping",
+    "notes": "Shops charge for bags now. Say this at checkout to decline. Appreciated for sustainability too.",
+    "segments": [
+      {"ja":"袋は","reading":"ふくろは","romaji":"fukuro wa","en":"bag"},
+      {"ja":"いりません","reading":"いりません","romaji":"irimasen","en":"don't need"}
+    ]
+  },
+  {
+    "id": "phrase-genkin", "type": "phrase", "ja": "現金で払います", "reading": "げんきんではらいます", "romaji": "genkin de haraimasu", "en": "I'll pay by cash", "unit": "u6-shopping",
+    "notes": "Japan is still a cash society. Have yen on hand, especially outside big cities.",
+    "segments": [
+      {"ja":"現金で","reading":"げんきんで","romaji":"genkin de","en":"by cash"},
+      {"ja":"払います","reading":"はらいます","romaji":"haraimasu","en":"will pay"}
+    ]
+  },
+  {
+    "id": "phrase-saizu", "type": "phrase", "ja": "Mサイズはありますか？", "reading": "えむさいずはありますか", "romaji": "M saizu wa arimasu ka", "en": "Do you have size M?", "unit": "u6-shopping",
+    "notes": "Replace M with S, L, LL. Japanese sizing runs small — know your measurements.",
+    "segments": [
+      {"ja":"Mサイズは","reading":"えむさいずは","romaji":"M saizu wa","en":"size M"},
+      {"ja":"ありますか","reading":"ありますか","romaji":"arimasu ka","en":"do you have?"}
+    ]
+  },
+  {
+    "id": "phrase-chigau-iro", "type": "phrase", "ja": "違う色はありますか？", "reading": "ちがういろはありますか", "romaji": "chigau iro wa arimasu ka", "en": "Do you have a different color?", "unit": "u6-shopping",
+    "segments": [
+      {"ja":"違う色は","reading":"ちがういろは","romaji":"chigau iro wa","en":"different color"},
+      {"ja":"ありますか","reading":"ありますか","romaji":"arimasu ka","en":"do you have?"}
+    ]
+  },
+  {
+    "id": "phrase-shichaku", "type": "phrase", "ja": "試着できますか？", "reading": "しちゃくできますか", "romaji": "shichaku dekimasu ka", "en": "Can I try this on?", "unit": "u6-shopping",
+    "segments": [
+      {"ja":"試着","reading":"しちゃく","romaji":"shichaku","en":"try on"},
+      {"ja":"できますか","reading":"できますか","romaji":"dekimasu ka","en":"can I?"}
+    ]
+  },
+  {
+    "id": "phrase-zeikomu", "type": "phrase", "ja": "税込みですか？", "reading": "ぜいこみですか", "romaji": "zeikomi desu ka", "en": "Is tax included?", "unit": "u6-shopping",
+    "notes": "Japan has a consumption tax (10% as of 2024). Signs may show pre-tax prices.",
+    "segments": [
+      {"ja":"税込み","reading":"ぜいこみ","romaji":"zeikomi","en":"tax included"},
+      {"ja":"ですか","reading":"ですか","romaji":"desu ka","en":"is it?"}
+    ]
+  },
+  {
+    "id": "phrase-waribiki", "type": "phrase", "ja": "割引はありますか？", "reading": "わりびきはありますか", "romaji": "waribiki wa arimasu ka", "en": "Is there a discount?", "unit": "u6-shopping",
+    "segments": [
+      {"ja":"割引は","reading":"わりびきは","romaji":"waribiki wa","en":"discount"},
+      {"ja":"ありますか","reading":"ありますか","romaji":"arimasu ka","en":"is there?"}
+    ]
+  },
+  {
+    "id": "phrase-tsutsumu", "type": "phrase", "ja": "プレゼント用に包んでください", "reading": "ぷれぜんとようにつつんでください", "romaji": "purezento you ni tsutsunde kudasai", "en": "Please wrap it as a gift", "unit": "u6-shopping",
+    "notes": "Japanese gift-wrapping is an art form. Shops wrap beautifully when you ask.",
+    "segments": [
+      {"ja":"プレゼント用に","reading":"ぷれぜんとようにつつんで","romaji":"purezento you ni","en":"as a gift"},
+      {"ja":"包んでください","reading":"つつんでください","romaji":"tsutsunde kudasai","en":"please wrap"}
+    ]
+  },
+  {
+    "id": "phrase-ryoushuusho", "type": "phrase", "ja": "領収書をください", "reading": "りょうしゅうしょをください", "romaji": "ryoushuusho wo kudasai", "en": "Receipt, please", "unit": "u6-shopping",
+    "notes": "For expense reports or returns. レシート (reshiito) is the informal word for the register slip.",
+    "segments": [
+      {"ja":"領収書を","reading":"りょうしゅうしょを","romaji":"ryoushuusho wo","en":"receipt"},
+      {"ja":"ください","reading":"ください","romaji":"kudasai","en":"please"}
+    ]
+  }
+]

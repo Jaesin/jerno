@@ -2,7 +2,7 @@ import { allItems, itemsByUnit, UNITS_ORDER } from '../content/index.js'
 import { isDue, initialState } from './srs.js'
 
 // exerciseTypeForItem: maps item + stage to an exercise type string
-// Exercise types: 'intro', 'flashcard', 'audio-pick', 'tile-builder', 'match-five', 'kana-pop'
+// Exercise types: 'intro', 'flashcard', 'audio-pick', 'tile-builder', 'cloze', 'match-five', 'kana-pop'
 export function exerciseTypeForItem(item, stage, opts = {}) {
   const { kidMode = false } = opts
   if (stage === 'seed') return 'intro'
@@ -10,8 +10,8 @@ export function exerciseTypeForItem(item, stage, opts = {}) {
   // variety by stage
   const pools = {
     sprout: ['flashcard', 'audio-pick', 'match-five'],
-    bamboo: ['audio-pick', 'tile-builder', 'flashcard'],
-    blossom: ['tile-builder', 'flashcard'],
+    bamboo: ['audio-pick', 'tile-builder', 'cloze', 'flashcard'],
+    blossom: ['tile-builder', 'cloze', 'flashcard'],
   }
   const pool = pools[stage] || ['flashcard']
   return pool[Math.floor(Math.random() * pool.length)]
@@ -21,14 +21,19 @@ export function exerciseTypeForItem(item, stage, opts = {}) {
 // srsStates: Map<itemId, srsState> (all known states for this learner)
 // profile: { newPerDay, activeUnit, kidMode }
 // returns: array of { item, exerciseType, srsState }
-export function buildSession(srsStates, profile = {}, now = Date.now()) {
+export function buildSession(srsStates, profile = {}, now = Date.now(), tripItems = []) {
   const {
     newPerDay = 5,
     activeUnit = UNITS_ORDER[0],
     kidMode = false,
   } = profile
 
-  const items = allItems
+  // Merge trip items into the pool. Trip items shadow any bundled item with the same ID.
+  const tripById = new Map(tripItems.map(i => [i.id, i]))
+  const items = [
+    ...tripItems,
+    ...allItems.filter(i => !tripById.has(i.id)),
+  ]
   const exercises = []
   const seen = new Set()
 
@@ -58,6 +63,19 @@ export function buildSession(srsStates, profile = {}, now = Date.now()) {
   const unitItems = itemsByUnit[activeUnit] || []
   let newCount = 0
   for (const item of unitItems) {
+    if (newCount >= newPerDay) break
+    if (seen.has(item.id)) continue
+    const s = srsStates.get(item.id)
+    if (!s || s.stage === 'seed') {
+      const state = s || initialState(item.id, now)
+      exercises.push({ item, exerciseType: 'intro', srsState: state })
+      seen.add(item.id)
+      newCount++
+    }
+  }
+
+  // 2b. Trip items: always eligible for introduction regardless of active unit
+  for (const item of tripItems) {
     if (newCount >= newPerDay) break
     if (seen.has(item.id)) continue
     const s = srsStates.get(item.id)

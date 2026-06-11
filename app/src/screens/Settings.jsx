@@ -12,6 +12,7 @@ export default function Settings() {
   const [rate, setRate]       = useState(() => localStorage.getItem('jerno-speech-rate') || '1.0')
   const [autoPlay, setAutoPlay] = useState(() => (localStorage.getItem('jerno-autoplay') || 'true') === 'true')
   const [goal, setGoal]       = useState(() => localStorage.getItem('jerno-daily-goal') || 'regular')
+  const [kidMode, setKidMode] = useState(() => localStorage.getItem('jerno-kid-mode') === 'true')
 
   function set(key, val, setter) { localStorage.setItem(key, val); setter(val) }
 
@@ -56,6 +57,21 @@ export default function Settings() {
             <span style={{ color: goal === val ? 'var(--accent)' : 'var(--text-muted)' }}>{goal === val ? '●' : '○'}</span>
           </div>
         ))}
+      </div>
+
+      <div className="settings-section">
+        <h2>Profiles</h2>
+        <div className="settings-row">
+          <div>
+            <label style={{ display: 'block' }}>Kid Mode</label>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>3 choices, no timers, bigger tiles</span>
+          </div>
+          <div
+            className={`toggle ${kidMode ? 'active' : ''}`}
+            onClick={() => set('jerno-kid-mode', String(!kidMode), v => setKidMode(v === 'true'))}
+            role="switch" aria-checked={kidMode} tabIndex={0} style={{ cursor: 'pointer' }}
+          />
+        </div>
       </div>
 
       <div className="settings-section">

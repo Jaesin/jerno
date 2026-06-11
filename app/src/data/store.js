@@ -69,6 +69,11 @@ export async function removeFromTripDeck(id) {
   return store.remove('decks', id)
 }
 
+export async function getTripDeckItems() {
+  const all = await store.list('decks')
+  return all.filter(i => i.unit === 'trip' || i.deckId === 'trip')
+}
+
 // --- SRS helpers ---
 
 export async function getSRSState(itemId) {

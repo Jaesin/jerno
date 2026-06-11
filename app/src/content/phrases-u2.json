@@ -1,0 +1,77 @@
+[
+  {
+    "id": "phrase-ichi", "type": "vocab", "ja": "一", "reading": "いち", "romaji": "ichi", "en": "1 (one)", "unit": "u2-numbers",
+    "notes": "Also いっ- before some consonants (e.g., いっぽん). Kanji is optional to read — the reading matters most.",
+    "segments": [{"ja":"一","reading":"いち","romaji":"ichi","en":"one"}]
+  },
+  {
+    "id": "phrase-ni", "type": "vocab", "ja": "二", "reading": "に", "romaji": "ni", "en": "2 (two)", "unit": "u2-numbers",
+    "notes": "Also the particle に meaning 'to/at'. Context disambiguates.",
+    "segments": [{"ja":"二","reading":"に","romaji":"ni","en":"two"}]
+  },
+  {
+    "id": "phrase-san", "type": "vocab", "ja": "三", "reading": "さん", "romaji": "san", "en": "3 (three)", "unit": "u2-numbers",
+    "notes": "Also the honorific さん (Mr/Ms). Same word, different context.",
+    "segments": [{"ja":"三","reading":"さん","romaji":"san","en":"three"}]
+  },
+  {
+    "id": "phrase-shi", "type": "vocab", "ja": "四", "reading": "し・よん", "romaji": "shi / yon", "en": "4 (four)", "unit": "u2-numbers",
+    "notes": "よん is preferred in most contexts; し sounds like 死 (death) so よん is safer.",
+    "segments": [{"ja":"四","reading":"よん","romaji":"yon","en":"four"}]
+  },
+  {
+    "id": "phrase-go", "type": "vocab", "ja": "五", "reading": "ご", "romaji": "go", "en": "5 (five)", "unit": "u2-numbers",
+    "segments": [{"ja":"五","reading":"ご","romaji":"go","en":"five"}]
+  },
+  {
+    "id": "phrase-roku", "type": "vocab", "ja": "六", "reading": "ろく", "romaji": "roku", "en": "6 (six)", "unit": "u2-numbers",
+    "segments": [{"ja":"六","reading":"ろく","romaji":"roku","en":"six"}]
+  },
+  {
+    "id": "phrase-shichi", "type": "vocab", "ja": "七", "reading": "しち・なな", "romaji": "shichi / nana", "en": "7 (seven)", "unit": "u2-numbers",
+    "notes": "なな is safer and more common in everyday use (like 4, the other reading can be unlucky).",
+    "segments": [{"ja":"七","reading":"なな","romaji":"nana","en":"seven"}]
+  },
+  {
+    "id": "phrase-hachi", "type": "vocab", "ja": "八", "reading": "はち", "romaji": "hachi", "en": "8 (eight)", "unit": "u2-numbers",
+    "segments": [{"ja":"八","reading":"はち","romaji":"hachi","en":"eight"}]
+  },
+  {
+    "id": "phrase-ku", "type": "vocab", "ja": "九", "reading": "く・きゅう", "romaji": "ku / kyuu", "en": "9 (nine)", "unit": "u2-numbers",
+    "notes": "きゅう is more common; く is heard in time expressions (9 o'clock = くじ).",
+    "segments": [{"ja":"九","reading":"きゅう","romaji":"kyuu","en":"nine"}]
+  },
+  {
+    "id": "phrase-juu", "type": "vocab", "ja": "十", "reading": "じゅう", "romaji": "juu", "en": "10 (ten)", "unit": "u2-numbers",
+    "segments": [{"ja":"十","reading":"じゅう","romaji":"juu","en":"ten"}]
+  },
+  {
+    "id": "phrase-hyaku", "type": "vocab", "ja": "百", "reading": "ひゃく", "romaji": "hyaku", "en": "100 (hundred)", "unit": "u2-numbers",
+    "notes": "Combined: 三百 = sanbyaku (300), 六百 = roppyaku (600). For shopping, watch for ひゃく on price tags.",
+    "segments": [{"ja":"百","reading":"ひゃく","romaji":"hyaku","en":"hundred"}]
+  },
+  {
+    "id": "phrase-sen", "type": "vocab", "ja": "千", "reading": "せん", "romaji": "sen", "en": "1,000 (thousand)", "unit": "u2-numbers",
+    "notes": "A ¥1,000 note is 千円. Most meals and transit fares are in this range.",
+    "segments": [{"ja":"千","reading":"せん","romaji":"sen","en":"thousand"}]
+  },
+  {
+    "id": "phrase-man", "type": "vocab", "ja": "万", "reading": "まん", "romaji": "man", "en": "10,000 (ten thousand)", "unit": "u2-numbers",
+    "notes": "Japan uses 万 as the large-number unit. ¥10,000 = 一万円. Hotel rates, electronics, and ryokan are in this range.",
+    "segments": [{"ja":"万","reading":"まん","romaji":"man","en":"ten-thousand"}]
+  },
+  {
+    "id": "phrase-ikura-desu", "type": "phrase", "ja": "これはいくらですか？", "reading": "これはいくらですか", "romaji": "kore wa ikura desu ka", "en": "How much is this?", "unit": "u2-numbers",
+    "notes": "Point at the item. Works in any shop. The shopkeeper will usually show you a calculator.",
+    "segments": [
+      {"ja":"これは","reading":"これは","romaji":"kore wa","en":"this"},
+      {"ja":"いくら","reading":"いくら","romaji":"ikura","en":"how much"},
+      {"ja":"ですか","reading":"ですか","romaji":"desu ka","en":"is it?"}
+    ]
+  },
+  {
+    "id": "phrase-en", "type": "vocab", "ja": "円", "reading": "えん", "romaji": "en", "en": "Yen (¥)", "unit": "u2-numbers",
+    "notes": "The currency. 千円 (sen-en) = ¥1,000. 一万円 (ichiman-en) = ¥10,000.",
+    "segments": [{"ja":"円","reading":"えん","romaji":"en","en":"yen"}]
+  }
+]

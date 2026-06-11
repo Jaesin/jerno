@@ -1,0 +1,88 @@
+[
+  {
+    "id": "phrase-eki", "type": "vocab", "ja": "駅", "reading": "えき", "romaji": "eki", "en": "Station (train/subway)", "unit": "u4-transit",
+    "notes": "Look for this kanji on signs — you'll see it constantly.",
+    "segments": [{"ja":"駅","reading":"えき","romaji":"eki","en":"station"}]
+  },
+  {
+    "id": "phrase-densha", "type": "vocab", "ja": "電車", "reading": "でんしゃ", "romaji": "densha", "en": "Train", "unit": "u4-transit",
+    "segments": [{"ja":"電車","reading":"でんしゃ","romaji":"densha","en":"train"}]
+  },
+  {
+    "id": "phrase-chikatetsu", "type": "vocab", "ja": "地下鉄", "reading": "ちかてつ", "romaji": "chikatetsu", "en": "Subway / metro", "unit": "u4-transit",
+    "segments": [{"ja":"地下鉄","reading":"ちかてつ","romaji":"chikatetsu","en":"subway"}]
+  },
+  {
+    "id": "phrase-e-ikitai", "type": "phrase", "ja": "〜へ行きたいです", "reading": "〜へいきたいです", "romaji": "~ e ikitai desu", "en": "I want to go to ~", "unit": "u4-transit",
+    "notes": "Replace 〜 with the destination. E.g. 渋谷へ行きたいです — I want to go to Shibuya.",
+    "segments": [
+      {"ja":"〜へ","reading":"〜へ","romaji":"~ e","en":"to ~"},
+      {"ja":"行きたい","reading":"いきたい","romaji":"ikitai","en":"want to go"},
+      {"ja":"です","reading":"です","romaji":"desu","en":"(polite)"}
+    ]
+  },
+  {
+    "id": "phrase-doko", "type": "phrase", "ja": "〜はどこですか？", "reading": "〜はどこですか", "romaji": "~ wa doko desu ka", "en": "Where is ~?", "unit": "u4-transit",
+    "notes": "Replace 〜 with the place. Works for toilets, exits, stations, shops.",
+    "segments": [
+      {"ja":"〜は","reading":"〜は","romaji":"~ wa","en":"~ (topic)"},
+      {"ja":"どこ","reading":"どこ","romaji":"doko","en":"where"},
+      {"ja":"ですか","reading":"ですか","romaji":"desu ka","en":"is it?"}
+    ]
+  },
+  {
+    "id": "phrase-migi", "type": "vocab", "ja": "右", "reading": "みぎ", "romaji": "migi", "en": "Right (direction)", "unit": "u4-transit",
+    "segments": [{"ja":"右","reading":"みぎ","romaji":"migi","en":"right"}]
+  },
+  {
+    "id": "phrase-hidari", "type": "vocab", "ja": "左", "reading": "ひだり", "romaji": "hidari", "en": "Left (direction)", "unit": "u4-transit",
+    "segments": [{"ja":"左","reading":"ひだり","romaji":"hidari","en":"left"}]
+  },
+  {
+    "id": "phrase-massugu", "type": "vocab", "ja": "まっすぐ", "reading": "まっすぐ", "romaji": "massugu", "en": "Straight ahead", "unit": "u4-transit",
+    "notes": "The small っ makes a short stop — まっすぐ not まーすぐ.",
+    "segments": [{"ja":"まっすぐ","reading":"まっすぐ","romaji":"massugu","en":"straight ahead"}]
+  },
+  {
+    "id": "phrase-deguchi", "type": "vocab", "ja": "出口", "reading": "でぐち", "romaji": "deguchi", "en": "Exit", "unit": "u4-transit",
+    "notes": "You'll see this kanji in every station. 北口 (kita-guchi) = north exit, 南口 (minami-guchi) = south exit.",
+    "segments": [{"ja":"出口","reading":"でぐち","romaji":"deguchi","en":"exit"}]
+  },
+  {
+    "id": "phrase-kippu", "type": "phrase", "ja": "切符はどこで買えますか？", "reading": "きっぷはどこでかえますか", "romaji": "kippu wa doko de kaemasu ka", "en": "Where can I buy a ticket?", "unit": "u4-transit",
+    "segments": [
+      {"ja":"切符は","reading":"きっぷは","romaji":"kippu wa","en":"ticket"},
+      {"ja":"どこで","reading":"どこで","romaji":"doko de","en":"where"},
+      {"ja":"買えますか","reading":"かえますか","romaji":"kaemasu ka","en":"can I buy?"}
+    ]
+  },
+  {
+    "id": "phrase-norikaeru", "type": "phrase", "ja": "乗り換えはありますか？", "reading": "のりかえはありますか", "romaji": "norikae wa arimasu ka", "en": "Is there a transfer?", "unit": "u4-transit",
+    "segments": [
+      {"ja":"乗り換えは","reading":"のりかえは","romaji":"norikae wa","en":"transfer"},
+      {"ja":"ありますか","reading":"ありますか","romaji":"arimasu ka","en":"is there?"}
+    ]
+  },
+  {
+    "id": "phrase-jikan", "type": "phrase", "ja": "どのくらいかかりますか？", "reading": "どのくらいかかりますか", "romaji": "dono kurai kakarimasu ka", "en": "How long does it take?", "unit": "u4-transit",
+    "segments": [
+      {"ja":"どのくらい","reading":"どのくらい","romaji":"dono kurai","en":"how long"},
+      {"ja":"かかりますか","reading":"かかりますか","romaji":"kakarimasu ka","en":"does it take?"}
+    ]
+  },
+  {
+    "id": "phrase-tomaru", "type": "phrase", "ja": "〜に止まりますか？", "reading": "〜にとまりますか", "romaji": "~ ni tomarimasu ka", "en": "Does it stop at ~?", "unit": "u4-transit",
+    "segments": [
+      {"ja":"〜に","reading":"〜に","romaji":"~ ni","en":"at ~"},
+      {"ja":"止まりますか","reading":"とまりますか","romaji":"tomarimasu ka","en":"does it stop?"}
+    ]
+  },
+  {
+    "id": "phrase-taxi", "type": "phrase", "ja": "〜までお願いします", "reading": "〜までおねがいします", "romaji": "~ made onegaishimasu", "en": "To ~ please (taxi)", "unit": "u4-transit",
+    "notes": "Say this to a taxi driver while showing the destination on your phone. 〜 = hotel name or address.",
+    "segments": [
+      {"ja":"〜まで","reading":"〜まで","romaji":"~ made","en":"to ~"},
+      {"ja":"お願いします","reading":"おねがいします","romaji":"onegaishimasu","en":"please"}
+    ]
+  }
+]

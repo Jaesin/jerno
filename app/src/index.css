@@ -740,3 +740,58 @@ body {
 .phrasebook-ja { font-family: 'Noto Sans JP', sans-serif; font-size: 20px; font-weight: 700; }
 .phrasebook-en { font-size: 14px; color: var(--text-muted); margin-top: 2px; }
 .phrasebook-rm { font-size: 12px; color: var(--text-muted); opacity: 0.7; }
+
+/* Progression — session end */
+.session-xp { font-size: 28px; font-weight: 700; color: var(--accent); margin: 8px 0; }
+.session-rank { font-size: 14px; color: var(--text-muted); margin-bottom: 16px; font-family: 'Noto Sans JP', sans-serif; }
+
+/* Progression — quests */
+.quests-section { width: 100%; margin-bottom: 16px; }
+.quests-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 8px; }
+.quest-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 14px;
+}
+.quest-row.done .quest-label { color: var(--text-muted); text-decoration: line-through; }
+.quest-check { font-size: 18px; flex-shrink: 0; }
+.quest-label { flex: 1; }
+
+/* Progression — learn stats */
+.learn-stats { display: flex; gap: 16px; width: 100%; justify-content: space-around; padding: 16px 0; }
+.stat { text-align: center; }
+.stat-num { font-size: 28px; font-weight: 700; color: var(--text); font-family: 'Noto Sans JP', sans-serif; }
+.stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+/* Speaking Lab */
+.speaking-screen { padding: 16px; max-width: 480px; margin: 0 auto; min-height: 100vh; }
+.speaking-header { margin-bottom: 16px; }
+.speaking-tabs { display: flex; gap: 0; border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-sm); overflow: hidden; margin-top: 8px; }
+.speaking-tab { flex: 1; padding: 10px; background: none; border: none; color: var(--text-muted); font-size: 14px; cursor: pointer; transition: all 0.15s; }
+.speaking-tab.active { background: var(--accent); color: white; }
+.echo-card { background: var(--surface); border-radius: var(--radius); padding: 24px; margin-bottom: 16px; }
+.echo-ja { font-family: 'Noto Sans JP', sans-serif; font-size: 32px; font-weight: 700; text-align: center; margin-bottom: 8px; }
+.echo-romaji { text-align: center; color: var(--text-muted); font-size: 16px; margin-bottom: 8px; }
+.echo-focus { font-size: 13px; color: var(--accent); text-align: center; background: rgba(233,69,96,0.08); border-radius: var(--radius-sm); padding: 8px 12px; margin-bottom: 16px; }
+.echo-controls { display: flex; flex-direction: column; gap: 12px; align-items: center; }
+.echo-ref-btn { background: var(--surface-hover); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius); padding: 12px 24px; color: var(--text); font-size: 16px; cursor: pointer; width: 100%; }
+.record-btn { width: 80px; height: 80px; border-radius: 50%; background: var(--accent); border: none; color: white; font-size: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.record-btn.recording { background: #ef4444; animation: pulse 0.8s infinite; }
+.ab-buttons { display: flex; gap: 10px; width: 100%; }
+.ab-btn { flex: 1; padding: 12px; background: var(--surface-hover); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-sm); color: var(--text); font-size: 14px; cursor: pointer; }
+.mp-pair { display: flex; flex-direction: column; gap: 12px; }
+.mp-audio-prompt { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 20px 0; }
+.mp-ja-hint { font-family: 'Noto Sans JP', sans-serif; font-size: 20px; color: var(--text-muted); }
+.mp-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.mp-choice { padding: 20px 12px; background: var(--surface); border: 2px solid rgba(255,255,255,0.08); border-radius: var(--radius); text-align: center; cursor: pointer; transition: all 0.15s; }
+.mp-choice:hover { border-color: var(--accent); }
+.mp-choice .mp-choice-ja { font-family: 'Noto Sans JP', sans-serif; font-size: 22px; font-weight: 700; }
+.mp-choice .mp-choice-en { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.mp-choice.correct { background: rgba(34,197,94,0.15); border-color: #22c55e; }
+.mp-choice.wrong { background: rgba(239,68,68,0.15); border-color: #ef4444; }
+.speaking-end { text-align: center; padding: 32px 16px; }
+.speaking-end h2 { font-size: 28px; margin-bottom: 8px; }
+
+/* Learn — shortcut row */
+.shortcut-row { display: flex; gap: 10px; width: 100%; margin-bottom: 16px; }
+.shortcut-btn { flex: 1; }

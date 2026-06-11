@@ -4,6 +4,7 @@ import Learn from './screens/Learn.jsx'
 import Settings from './screens/Settings.jsx'
 import Join from './screens/Join.jsx'
 import KanaArcade from './screens/KanaArcade.jsx'
+import SpeakingLab from './screens/SpeakingLab.jsx'
 
 function BottomNav() {
   const navigate = useNavigate()
@@ -40,12 +41,14 @@ export default function Shell() {
           <Route path="/settings" element={<Settings />} />
           <Route path="/join" element={<Join />} />
           <Route path="/arcade" element={<KanaArcade />} />
+          <Route path="/speaking" element={<SpeakingLab />} />
         </Routes>
       </div>
       <Routes>
         <Route path="/settings" element={null} />
         <Route path="/join" element={null} />
         <Route path="/arcade" element={null} />
+        <Route path="/speaking" element={null} />
         <Route path="*" element={<BottomNav />} />
       </Routes>
     </HashRouter>
