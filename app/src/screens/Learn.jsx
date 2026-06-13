@@ -29,6 +29,18 @@ function spokenText(item) {
   return item.ja || item.glyph || ''
 }
 
+// Forgiving answer comparison: trim, lowercase, collapse whitespace, and
+// strip leading/trailing sentence punctuation (incl. Japanese 。？！) so
+// "Sumimasen?" matches "sumimasen" (spec 22 typo tolerance, first pass).
+function normAnswer(s) {
+  return String(s ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/^[?.!？。！]+|[?.!？。！]+$/g, '')
+    .trim()
+}
+
 // Daily goal setting → number of new items introduced per session.
 const GOAL_NEW_PER_DAY = { chill: 3, regular: 5, serious: 8 }
 
@@ -374,12 +386,17 @@ function ClozeExercise({ item, onGrade, audio }) {
   const choices = useMemo(() => {
     if (!hasSegments) return []
     const correct = segments[blankIdx].reading
-    const own = new Set(segments.map(s => s.reading))
+    const own = new Set(segments.map(s => normAnswer(s.reading)))
+    const seen = new Set()
     const readings = []
     for (const other of allItems) {
       if (other.id === item.id || !Array.isArray(other.segments)) continue
       for (const s of other.segments) {
-        if (!own.has(s.reading) && !readings.includes(s.reading)) readings.push(s.reading)
+        const norm = normAnswer(s.reading)
+        if (!own.has(norm) && !seen.has(norm)) {
+          seen.add(norm)
+          readings.push(s.reading)
+        }
       }
     }
     const distractors = shuffle(readings).slice(0, 3)
@@ -395,7 +412,8 @@ function ClozeExercise({ item, onGrade, audio }) {
   const handlePick = (reading) => {
     if (picked !== null) return
     setPicked(reading)
-    setTimeout(() => onGrade(reading === correctReading ? 'got-it' : 'not-yet'), 1000)
+    const correct = normAnswer(reading) === normAnswer(correctReading)
+    setTimeout(() => onGrade(correct ? 'got-it' : 'not-yet'), 1000)
   }
 
   return (
@@ -414,7 +432,7 @@ function ClozeExercise({ item, onGrade, audio }) {
         {choices.map(reading => {
           let cls = 'cloze-choice'
           if (picked !== null) {
-            if (reading === correctReading) cls += ' correct'
+            if (normAnswer(reading) === normAnswer(correctReading)) cls += ' correct'
             else if (reading === picked) cls += ' wrong'
           }
           return (
@@ -539,6 +557,7 @@ export default function Learn() {
   const [progState, setProgState] = useState(null)
   const [tripItems, setTripItems] = useState([])
   const [lastEarnedXp, setLastEarnedXp] = useState(0)
+  const [newBadges, setNewBadges] = useState([])
   const srsMapRef = useRef(new Map())
   const resultsRef = useRef([])
   const requeuedRef = useRef(new Set()) // item IDs already re-queued this session
@@ -598,6 +617,7 @@ export default function Learn() {
     requeuedRef.current = new Set()
     setResults([])
     setLastEarnedXp(0)
+    setNewBadges([])
     setMode('session')
   }, [profile, activeUnit, tripItems])
 
@@ -610,9 +630,10 @@ export default function Learn() {
     awardEvent('session', {
       exerciseCount: resultsRef.current.length,
       stageUps,
-    }).then(({ earnedXp, next }) => {
+    }).then(({ earnedXp, next, newBadges }) => {
       setProgState(next)
       setLastEarnedXp(earnedXp)
+      setNewBadges(newBadges || [])
     }).catch(() => { /* never block */ })
   }, [])
 
@@ -745,6 +766,16 @@ export default function Learn() {
                   <Plant stage={STAGE_IDX[r.after.stage] ?? 0} size={22} />
                 </span>
               </div>
+            ))}
+          </div>
+        )}
+        {newBadges.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+            {newBadges.map(b => (
+              <Chip key={b.id} title={b.desc}
+                style={{ background: 'var(--gold-soft)', color: 'var(--gold)' }}>
+                {b.icon} {b.label}
+              </Chip>
             ))}
           </div>
         )}
@@ -894,10 +925,19 @@ export default function Learn() {
             title="Kana Arcade" sub="4 games" onClick={() => navigate('/arcade')} />
         </div>
 
-        {/* Speaking Lab shortcut (kept from the old Today view) */}
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <Chip onClick={() => navigate('/speaking')} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
+        {/* Speaking Lab + Family shortcuts (kept from the old Today view) */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
+          <Chip
+            onClick={() => {
+              // q3 family-action proxy: visiting the Speaking Lab counts
+              awardEvent('speaking', {}).catch(() => { /* never block */ })
+              navigate('/speaking')
+            }}
+            role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
             <NavIco name="mic" size={15} /> Speaking Lab
+          </Chip>
+          <Chip onClick={() => navigate('/family')} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
+            <NavIco name="family" size={15} /> <span className="jn-jp">家族</span> Family
           </Chip>
         </div>
 

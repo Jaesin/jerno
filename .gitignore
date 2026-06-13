@@ -4,4 +4,7 @@ dist/
 functions/__pycache__/
 functions/*.pyc
 functions/.env
+functions/.env.*
 .env
+.dev.vars
+.wrangler/

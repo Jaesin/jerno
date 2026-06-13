@@ -5,6 +5,7 @@ import Settings from './screens/Settings.jsx'
 import Join from './screens/Join.jsx'
 import KanaArcade from './screens/KanaArcade.jsx'
 import SpeakingLab from './screens/SpeakingLab.jsx'
+import Family from './screens/Family.jsx'
 import { TabBar } from './design/nav.jsx'
 
 // The 3-slot "One Thing" bottom bar: Today · Translate · You.
@@ -25,7 +26,30 @@ function BottomTabs() {
   )
 }
 
+// The app is gated behind the invite join flow. A device has "joined" once
+// useMember persisted its { key, name } credentials (or, pre-migration, the
+// old shared family token).
+function hasJoined() {
+  try {
+    const raw = localStorage.getItem('jerno.join')
+    if (raw && JSON.parse(raw)?.key) return true
+  } catch { /* fall through to the legacy key */ }
+  return !!localStorage.getItem('jerno-join-token')
+}
+
+// Dev escape hatch: local dev never requires a token.
+const GATE_ENABLED = !import.meta.env.DEV
+
+function JoinGate({ children }) {
+  const { pathname } = useLocation()
+  if (GATE_ENABLED && !hasJoined() && pathname !== '/join') {
+    return <Navigate to="/join" replace />
+  }
+  return children
+}
+
 function RedirectToLastMode() {
+  if (GATE_ENABLED && !hasJoined()) return <Navigate to="/join" replace />
   const stored = localStorage.getItem('jerno-last-mode')
   // Map legacy mode names (travel/learn) onto the new tabs.
   const MAP = { travel: 'translate', learn: 'today', today: 'today', translate: 'translate', you: 'you' }
@@ -37,6 +61,7 @@ export default function Shell() {
   return (
     <HashRouter>
       <div className="shell-content">
+        <JoinGate>
         <Routes>
           <Route path="/" element={<RedirectToLastMode />} />
           <Route path="/today" element={<Learn />} />
@@ -49,7 +74,9 @@ export default function Shell() {
           <Route path="/join" element={<Join />} />
           <Route path="/arcade" element={<KanaArcade />} />
           <Route path="/speaking" element={<SpeakingLab />} />
+          <Route path="/family" element={<Family />} />
         </Routes>
+        </JoinGate>
       </div>
       <Routes>
         <Route path="/join" element={null} />

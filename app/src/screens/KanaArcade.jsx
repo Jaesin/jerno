@@ -28,9 +28,23 @@ const KANA_POOL = itemsByUnit['u0-kana-hira']
 const STAGE_ORDER = ['seed', 'sprout', 'bamboo', 'blossom']
 
 // Hard-coded confusable pairs (romaji → romaji)
+// Sound- and shape-confusable kana (romaji keys). All pairs are bidirectional.
 const CONFUSABLES = {
-  shi: 'chi', chi: 'shi', tsu: 'su', su: 'tsu',
-  n: 'mu', mu: 'n', fu: 'hu', re: 'ne', me: 'ne',
+  // Sound-similar
+  shi: ['chi'], su: ['tsu'], mu: ['n'],
+  fu: ['hu', 'ha'],
+  // Shape-similar (and mixed)
+  a: ['o'], o: ['a'],
+  i: ['ri'], ri: ['i', 'n'],
+  u: ['tsu'], tsu: ['su', 'u'],
+  sa: ['chi', 'ki'], chi: ['shi', 'sa'], ki: ['sa'],
+  nu: ['me', 'no'], me: ['ne', 'nu'], no: ['nu'],
+  wa: ['ne', 're'], ne: ['re', 'me', 'wa'], re: ['ne', 'wa'],
+  ha: ['ho', 'fu'], ho: ['ha'],
+  ru: ['ro'], ro: ['ru'],
+  ku: ['he'], he: ['ku'],
+  ko: ['ni'], ni: ['ko'],
+  so: ['n'], n: ['mu', 'so', 'ri'],
 }
 
 const ROWS_ORDER = [
@@ -103,10 +117,11 @@ function multFor(streak) {
 function pickDistractors(target, pool, count) {
   const others = pool.filter(i => i.id !== target.id)
   const chosen = []
-  const confRomaji = CONFUSABLES[target.romaji]
-  if (confRomaji) {
-    const c = others.find(i => i.romaji === confRomaji)
-    if (c) chosen.push(c)
+  const confRomaji = CONFUSABLES[target.romaji] || []
+  for (const r of shuffle(confRomaji)) {
+    if (chosen.length >= count) break
+    const c = others.find(i => i.romaji === r)
+    if (c && !chosen.includes(c)) chosen.push(c)
   }
   const sameRow = shuffle(others.filter(i => i.row === target.row && !chosen.includes(i)))
   for (const i of sameRow) {
@@ -243,6 +258,8 @@ function KanaPopGame({
   title = 'Kana Pop',
   allowReverse = true,
   mustCover = [],           // item ids that must each appear before random picks
+  maxQuestions = null,      // end the round after this many answers (null = unlimited)
+  endHeading = 'Round over!',
   onExit,
   onRoundEnd,               // called once when the round ends (before the end card)
 }) {
@@ -299,6 +316,8 @@ function KanaPopGame({
       .then(r => setEarnedXp(r?.earnedXp ?? 0))
       .catch(() => {})
   }, [onRoundEnd, streak])
+  const endRoundRef = useRef(endRound)
+  endRoundRef.current = endRound
 
   const left = useCountdown(effectiveDuration, phase === 'play' && q != null, endRound)
 
@@ -307,7 +326,8 @@ function KanaPopGame({
     setLocked(true)
     setPicked(idx)
     const isCorrect = q.options[idx].id === q.target.id
-    setAnswered(a => a + 1)
+    const answeredNow = answered + 1
+    setAnswered(answeredNow)
     if (isCorrect) {
       playKana(q.target.glyph)
       const ns = streak + 1
@@ -325,6 +345,10 @@ function KanaPopGame({
     const prevTargetId = q.target.id
     setTimeout(() => {
       if (endedRef.current) return
+      if (maxQuestions != null && answeredNow >= maxQuestions) {
+        endRoundRef.current()
+        return
+      }
       setPicked(null)
       setLocked(false)
       setQ(makeQuestion(prevTargetId))
@@ -335,7 +359,7 @@ function KanaPopGame({
     return (
       <div className="arcade-screen">
         <EndCard
-          heading="Round over!"
+          heading={endHeading}
           lines={[
             `Score: ${score}`,
             `${correct} / ${answered} correct`,
@@ -400,12 +424,15 @@ function KanaPopGame({
 // Game 2 — Pairs (memory match, untimed by design)
 // ---------------------------------------------------------------------------
 
+const PAIRS_COUNT = 6 // 6 pairs → 12 cards
+
 function PairsGame({ onExit }) {
   const [cards, setCards] = useState(null)   // [{ key, item, kind, label }]
   const [flipped, setFlipped] = useState([]) // card keys, max 2
   const [matched, setMatched] = useState(() => new Set()) // item ids
   const [done, setDone] = useState(false)
   const [elapsed, setElapsed] = useState(0)
+  const [earnedXp, setEarnedXp] = useState(0)
 
   const startRef = useRef(Date.now())
   const mismatchedRef = useRef(new Set())
@@ -418,13 +445,13 @@ function PairsGame({ onExit }) {
     ;(async () => {
       let srsMap = null
       try { srsMap = await getSRSMap() } catch (e) { /* fresh start */ }
-      const introduced = shuffle(introducedItems(srsMap))
-      let chosen
-      if (introduced.length >= 8) {
-        chosen = introduced.slice(0, 8)
-      } else {
-        const fill = KANA_POOL.filter(i => !introduced.includes(i)).slice(0, 8 - introduced.length)
-        chosen = [...introduced, ...fill]
+      // Draw 6 distinct pairs, weakness-weighted so shaky kana show up more.
+      let remaining = [...KANA_POOL]
+      const chosen = []
+      while (chosen.length < PAIRS_COUNT && remaining.length > 0) {
+        const pick = weightedPick(remaining, srsMap, null)
+        chosen.push(pick)
+        remaining = remaining.filter(i => i.id !== pick.id)
       }
       const deck = shuffle(chosen.flatMap(item => ([
         { key: item.id + ':g', item, kind: 'glyph', label: item.glyph },
@@ -465,6 +492,9 @@ function PairsGame({ onExit }) {
       }
       if (nextMatched.size === cards.length / 2) {
         setElapsed(Math.round((Date.now() - startRef.current) / 1000))
+        awardEvent('arcade-round', { arcadeStreak: nextMatched.size })
+          .then(r => setEarnedXp(r?.earnedXp ?? 0))
+          .catch(() => {})
         setTimeout(() => setDone(true), 700)
       }
     } else {
@@ -491,6 +521,7 @@ function PairsGame({ onExit }) {
           ]}
           stageUps={stageUpsRef.current}
           onExit={onExit}
+          earnedXp={earnedXp}
         />
       </div>
     )
@@ -524,10 +555,12 @@ function PairsGame({ onExit }) {
 // Game 3 — Echo Tiles (listening first: hear it, pick the glyph)
 // ---------------------------------------------------------------------------
 
+const ECHO_QUESTIONS = 10
+
 function EchoTilesGame({ onExit }) {
   const kidMode = isKidMode()
-  const effectiveDuration = kidMode ? null : 60
-  const tileCount = kidMode ? 4 : 6
+  const effectiveDuration = kidMode ? null : 45
+  const tileCount = kidMode ? 3 : 4
 
   const [phase, setPhase] = useState('play')
   const [q, setQ] = useState(null)
@@ -539,11 +572,21 @@ function EchoTilesGame({ onExit }) {
   const [correct, setCorrect] = useState(0)
   const [celebrate, setCelebrate] = useState(false)
   const [earnedXp, setEarnedXp] = useState(0)
+  const [playing, setPlaying] = useState(false)
 
   const srsMapRef = useRef(null)
   const poolRef = useRef(KANA_POOL)
   const stageUpsRef = useRef([])
   const endedRef = useRef(false)
+  const correctRef = useRef(0)
+
+  // Audio playback state is approximate (playKana doesn't expose duration):
+  // show ♪ for ~1s after triggering, then the replay affordance.
+  const playTarget = useCallback((item) => {
+    setPlaying(true)
+    playKana(item.glyph)
+    setTimeout(() => setPlaying(false), 1000)
+  }, [])
 
   const makeQuestion = useCallback((excludeId) => {
     const pool = poolRef.current
@@ -569,17 +612,17 @@ function EchoTilesGame({ onExit }) {
 
   // Auto-play audio on every new question
   useEffect(() => {
-    if (q && phase === 'play') playKana(q.target.glyph)
-  }, [q, phase])
+    if (q && phase === 'play') playTarget(q.target)
+  }, [q, phase, playTarget])
 
   const endRound = useCallback(() => {
     if (endedRef.current) return
     endedRef.current = true
     setPhase('end')
-    awardEvent('arcade-round', { arcadeStreak: streak })
+    awardEvent('arcade-round', { arcadeStreak: correctRef.current })
       .then(r => setEarnedXp(r?.earnedXp ?? 0))
       .catch(() => {})
-  }, [streak])
+  }, [])
 
   const left = useCountdown(effectiveDuration, phase === 'play' && q != null, endRound)
 
@@ -588,12 +631,14 @@ function EchoTilesGame({ onExit }) {
     setLocked(true)
     setPicked(idx)
     const isCorrect = q.options[idx].id === q.target.id
-    setAnswered(a => a + 1)
+    const answeredNow = answered + 1
+    setAnswered(answeredNow)
     if (isCorrect) {
       const ns = streak + 1
       setStreak(ns)
       setScore(s => s + 10 * multFor(ns))
-      setCorrect(c => c + 1)
+      correctRef.current += 1
+      setCorrect(correctRef.current)
       if (kidMode && ns > 0 && ns % 5 === 0) {
         setCelebrate(true)
         setTimeout(() => setCelebrate(false), 1400)
@@ -605,10 +650,14 @@ function EchoTilesGame({ onExit }) {
     const prevTargetId = q.target.id
     setTimeout(() => {
       if (endedRef.current) return
+      if (answeredNow >= ECHO_QUESTIONS) {
+        endRound()
+        return
+      }
       setPicked(null)
       setLocked(false)
       setQ(makeQuestion(prevTargetId))
-    }, isCorrect ? 1000 : 1500)
+    }, isCorrect ? 600 : 1200)
   }
 
   if (phase === 'end') {
@@ -630,21 +679,25 @@ function EchoTilesGame({ onExit }) {
   return (
     <div className="arcade-screen">
       <GameHeader
-        title="Echo Tiles"
+        title={`Echo Tiles · ${Math.min(answered + 1, ECHO_QUESTIONS)}/${ECHO_QUESTIONS}`}
         onExit={onExit}
-        right={effectiveDuration == null
-          ? <button className="arcade-back" onClick={endRound}>Finish ✓</button>
-          : null}
       />
       <TimerBar left={left} total={effectiveDuration} />
       <StreakDisplay streak={streak} />
       <CelebrateBanner show={celebrate} streak={streak} />
       <div style={{ textAlign: 'center', margin: '24px 0' }}>
-        <button className="kana-choice-btn" style={{ fontSize: 32, padding: '20px 36px' }}
-          onClick={() => playKana(q.target.glyph)}>
-          🔊
+        <button className="kana-choice-btn"
+          style={{
+            fontSize: 32, padding: '20px 36px', minWidth: 'var(--tap)', minHeight: 'var(--tap)',
+            borderColor: 'var(--gold)', background: 'var(--gold-soft)',
+          }}
+          disabled={playing}
+          onClick={() => playTarget(q.target)}>
+          {playing ? '♪' : '🔊'}
         </button>
-        <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 8 }}>Tap to replay</p>
+        <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 8 }}>
+          {playing ? 'Listen…' : 'Tap to replay'}
+        </p>
       </div>
       <div className={'kana-choices' + (kidMode ? ' kid' : '')} style={{ gridTemplateColumns: '1fr 1fr' }}>
         {q.options.map((opt, idx) => {
@@ -655,10 +708,11 @@ function EchoTilesGame({ onExit }) {
             else if (idx === picked) cls += ' wrong shake'
           }
           return (
-            <button key={opt.id} className={cls} onClick={() => answer(idx)}>
+            <button key={opt.id} className={cls} style={{ fontSize: 64, lineHeight: 1.3 }}
+              onClick={() => answer(idx)}>
               {opt.glyph}
-              {picked != null && isTarget && (
-                <span style={{ display: 'block', fontSize: 12 }}>✓ {opt.romaji}</span>
+              {picked != null && isTarget && !kidMode && (
+                <span style={{ display: 'block', fontSize: 12, fontFamily: 'var(--f-body)' }}>✓ {opt.romaji}</span>
               )}
             </button>
           )
@@ -672,6 +726,20 @@ function EchoTilesGame({ onExit }) {
 // Game 4 — Kana Ladder (progression wrapper around Kana Pop)
 // ---------------------------------------------------------------------------
 
+// Ladder rungs: the lone ん joins the わ rung so the last gauntlet is わ・を・ん.
+const LADDER_RUNGS = [
+  { key: 'a-row', rows: ['a-row'] },
+  { key: 'ka-row', rows: ['ka-row'] },
+  { key: 'sa-row', rows: ['sa-row'] },
+  { key: 'ta-row', rows: ['ta-row'] },
+  { key: 'na-row', rows: ['na-row'] },
+  { key: 'ha-row', rows: ['ha-row'] },
+  { key: 'ma-row', rows: ['ma-row'] },
+  { key: 'ya-row', rows: ['ya-row'] },
+  { key: 'ra-row', rows: ['ra-row'] },
+  { key: 'wa-row', rows: ['wa-row', 'n-row'] },
+]
+
 function KanaLadderGame({ onExit }) {
   const [srsMap, setSrsMap] = useState(null)
   const [mode, setMode] = useState({ name: 'map' }) // map | intro | gauntlet
@@ -683,72 +751,61 @@ function KanaLadderGame({ onExit }) {
 
   useEffect(() => { reloadMap() }, [reloadMap])
 
-  const rowItems = useCallback(
-    (row) => KANA_POOL.filter(i => i.row === row),
+  const rungItems = useCallback(
+    (rung) => KANA_POOL.filter(i => rung.rows.includes(i.row)),
     [],
   )
 
-  const rowCleared = useCallback((row) => {
-    if (!srsMap) return false
-    return rowItems(row).every(i => {
-      const s = srsMap.get(i.id)
-      return s && s.stage !== 'seed'
-    })
-  }, [srsMap, rowItems])
+  const seen = useCallback((item) => (srsMap?.get(item.id)?.seenCount ?? 0) > 0, [srsMap])
+  const rungSeen = useCallback((rung) => rungItems(rung).some(seen), [rungItems, seen])
+  const rungCleared = useCallback((rung) => srsMap != null && rungItems(rung).every(seen), [srsMap, rungItems, seen])
 
-  const rowUnlocked = useCallback((idx) => {
+  // Unlocked when any of its kana has been seen (e.g. via sessions or other
+  // games); the first rung is always open, and clearing a rung opens the next.
+  const rungUnlocked = useCallback((idx) => {
     if (idx === 0) return true
-    return rowCleared(ROWS_ORDER[idx - 1])
-  }, [rowCleared])
+    return rungSeen(LADDER_RUNGS[idx]) || rungCleared(LADDER_RUNGS[idx - 1])
+  }, [rungSeen, rungCleared])
 
-  function startRung(row) {
+  function startRung(rung) {
     setIntroIdx(0)
-    setMode({ name: 'intro', row })
+    setMode({ name: 'intro', rung })
   }
 
-  // Build the gauntlet pool once, when the gauntlet starts: the new row's kana
-  // mixed with 2 random already-learned kana from other rows.
-  function startGauntlet(row) {
-    const items = rowItems(row)
-    const learned = shuffle(
-      introducedItems(srsMap).filter(i => i.row !== row)
-    ).slice(0, 2)
-    setMode({ name: 'gauntlet', row, pool: [...items, ...learned], mustCover: items.map(i => i.id) })
+  // Gauntlet: a 5-question mini-Pop round using only this rung's kana.
+  function startGauntlet(rung) {
+    const items = rungItems(rung)
+    setMode({ name: 'gauntlet', rung, pool: items, mustCover: items.map(i => i.id) })
   }
 
-  // After a gauntlet round ends, make sure every row item is marked introduced
-  // (it will have a non-seed SRS state), so the next rung unlocks.
-  const finalizeRung = useCallback(async (row) => {
-    for (const item of rowItems(row)) {
+  // After a gauntlet round ends, mark every still-unseen rung item as seen
+  // (grade 'got-it') so the rung counts as cleared and the next one unlocks.
+  const finalizeRung = useCallback(async (rung) => {
+    const ignoredStageUps = { current: [] }
+    for (const item of rungItems(rung)) {
       try {
         const existing = await getSRSState(item.id)
-        if (!existing || existing.stage === 'seed') {
-          const base = existing || initialState(item.id)
-          await saveSRSState({
-            ...base,
-            stage: 'sprout', step: 1, interval: 1,
-            seenCount: Math.max(1, base.seenCount),
-            due: Date.now() + 24 * 60 * 60 * 1000,
-          })
+        if (!existing || (existing.seenCount ?? 0) === 0) {
+          await gradeAndTrack(item, 'got-it', ignoredStageUps)
         }
       } catch (e) { /* best effort */ }
     }
     reloadMap()
-  }, [rowItems, reloadMap])
+  }, [rungItems, reloadMap])
 
   // --- Intro phase: show each new kana one at a time ---
   if (mode.name === 'intro') {
-    const items = rowItems(mode.row)
+    const items = rungItems(mode.rung)
     const item = items[introIdx]
     return (
       <div className="arcade-screen">
-        <GameHeader title={`${ROW_LABELS[mode.row]} · ${introIdx + 1}/${items.length}`}
+        <GameHeader title={`${ROW_LABELS[mode.rung.key]} · ${introIdx + 1}/${items.length}`}
           onExit={() => setMode({ name: 'map' })} />
         <IntroCard key={item.id} item={item} />
         <button className="btn-primary" style={{ width: '100%', marginTop: 16 }}
           onClick={() => {
             if (introIdx + 1 < items.length) setIntroIdx(introIdx + 1)
-            else startGauntlet(mode.row)
+            else startGauntlet(mode.rung)
           }}>
           {introIdx + 1 < items.length ? 'Next →' : 'Start the gauntlet! ⚔️'}
         </button>
@@ -756,16 +813,18 @@ function KanaLadderGame({ onExit }) {
     )
   }
 
-  // --- Gauntlet phase: Kana Pop on the new row + 2 learned kana, 90s ---
+  // --- Gauntlet phase: 5-question mini-Pop on this rung's kana only ---
   if (mode.name === 'gauntlet') {
     return (
       <KanaPopGame
         pool={mode.pool}
-        duration={90}
-        title={`${ROW_LABELS[mode.row]} gauntlet`}
+        duration={45}
+        maxQuestions={5}
+        title={`${ROW_LABELS[mode.rung.key]} gauntlet`}
         allowReverse={false}
         mustCover={mode.mustCover}
-        onRoundEnd={() => finalizeRung(mode.row)}
+        endHeading="Row cleared! 🎉"
+        onRoundEnd={() => finalizeRung(mode.rung)}
         onExit={() => { reloadMap(); setMode({ name: 'map' }) }}
       />
     )
@@ -775,22 +834,22 @@ function KanaLadderGame({ onExit }) {
   return (
     <div className="ladder-screen">
       <GameHeader title="Kana Ladder" onExit={onExit} />
-      {ROWS_ORDER.map((row, idx) => {
-        const items = rowItems(row)
-        const unlocked = rowUnlocked(idx)
-        const cleared = rowCleared(row)
+      {LADDER_RUNGS.map((rung, idx) => {
+        const items = rungItems(rung)
+        const unlocked = rungUnlocked(idx)
+        const cleared = rungCleared(rung)
         return (
-          <div key={row} className={'ladder-rung' + (unlocked ? '' : ' locked')}>
+          <div key={rung.key} className={'ladder-rung' + (unlocked ? '' : ' locked')}>
             <span className={'ladder-rung-status' + (cleared ? ' cleared' : unlocked ? ' open' : '')}>
               {cleared ? <NavIco name="check" size={20} /> : unlocked ? <NavIco name="arrowR" size={20} /> : <LockIco size={20} />}
             </span>
             <div className="ladder-rung-preview">
-              <div className="ladder-rung-label">{ROW_LABELS[row]}</div>
+              <div className="ladder-rung-label">{ROW_LABELS[rung.key]}</div>
               {items.map(i => i.glyph).join('・')}
             </div>
             {unlocked && (
-              <button className="jn-btn jn-btn--green" style={{ padding: '0 16px', fontSize: 13 }}
-                onClick={() => startRung(row)}>
+              <button className="jn-btn" style={{ padding: '0 16px', fontSize: 13, background: 'var(--pink)', color: 'var(--on-pink)' }}
+                onClick={() => startRung(rung)}>
                 {cleared ? 'Replay' : 'Start'}
               </button>
             )}

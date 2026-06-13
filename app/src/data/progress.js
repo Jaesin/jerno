@@ -34,6 +34,16 @@ export function xpToNextRank(totalXp) {
   return next.minXp - totalXp
 }
 
+// Badge definitions — unlock conditions live in awardEvent
+export const BADGES = [
+  { id: 'first_session',   icon: '🌱', label: 'First Steps',      desc: 'Complete your first practice session' },
+  { id: 'streak_7',        icon: '🔥', label: 'Week Warrior',     desc: 'Reach a 7-day streak' },
+  { id: 'first_blossom',   icon: '🌸', label: 'First Blossom',    desc: 'Bring an item to blossom stage' },
+  { id: 'trip_deck_5',     icon: '✈️',  label: 'Trip Packer',      desc: 'Add 5 phrases to your trip deck' },
+  { id: 'arcade_10',       icon: '🎮', label: 'Arcade Regular',   desc: 'Complete 10 arcade rounds' },
+  { id: 'rank_student',    icon: '⛩️',  label: 'Student',          desc: 'Reach 学生 (Student) rank' },
+]
+
 // Default progress shape
 function defaultProgress() {
   return {
@@ -43,6 +53,9 @@ function defaultProgress() {
     quests: { date: null, q1: false, q2: false, q3: false },
     badges: {},
     weekXp: { isoWeek: null, xp: 0 },
+    totalSessions: 0,
+    totalArcadeRounds: 0,
+    tripDeckAdds: 0,
   }
 }
 
@@ -66,8 +79,10 @@ function todayISO() {
 }
 
 // Main entry point: call after every session/round
-// type: 'session' | 'arcade-round'
+// type: 'session' | 'arcade-round' | 'speaking' | 'trip-deck-add'
 // payload: { exerciseCount, stageUps: [{ from, to }], arcadeStreak? }
+// Returns { earnedXp, next, newBadges } — newBadges is an array of badge
+// definitions unlocked by this call (empty if none).
 export async function awardEvent(type, payload = {}) {
   const prog = await getProgressData()
   const today = todayISO()
@@ -133,6 +148,20 @@ export async function awardEvent(type, payload = {}) {
   if (type === 'session' && (payload.exerciseCount || 0) > 0) {
     quests.q1 = true
   }
+  // mark q2 done on any completed arcade round — daily arcade quest
+  if (type === 'arcade-round' && !quests.q2) {
+    quests.q2 = true
+  }
+  // mark q3 done on any speaking signal — family-action quest proxy
+  // (Speaking Lab visit or Echo Booth grade) until the family screen exists
+  if (type === 'speaking' && !quests.q3) {
+    quests.q3 = true
+  }
+
+  // Lifetime counters (used by badge conditions)
+  const totalSessions = (prog.totalSessions || 0) + (type === 'session' ? 1 : 0)
+  const totalArcadeRounds = (prog.totalArcadeRounds || 0) + (type === 'arcade-round' ? 1 : 0)
+  const tripDeckAdds = (prog.tripDeckAdds || 0) + (type === 'trip-deck-add' ? 1 : 0)
 
   const next = {
     ...prog,
@@ -140,10 +169,29 @@ export async function awardEvent(type, payload = {}) {
     weekXp: { isoWeek: week, xp: weekXp },
     streak,
     quests,
+    badges: { ...prog.badges },
+    totalSessions,
+    totalArcadeRounds,
+    tripDeckAdds,
   }
 
+  // Badge unlocks — check conditions, collect anything newly unlocked
+  const newBadges = []
+  const unlock = (id) => {
+    if (next.badges[id]) return
+    next.badges[id] = { unlockedAt: Date.now() }
+    const def = BADGES.find(b => b.id === id)
+    if (def) newBadges.push(def)
+  }
+  if (type === 'session' && totalSessions === 1) unlock('first_session')
+  if ((streak.current || 0) >= 7) unlock('streak_7')
+  if (type === 'session' && (payload.stageUps || []).some(su => su.to === 'blossom')) unlock('first_blossom')
+  if (tripDeckAdds >= 5) unlock('trip_deck_5')
+  if (totalArcadeRounds >= 10) unlock('arcade_10')
+  if (RANKS.indexOf(rankFor(newXp)) >= 1) unlock('rank_student')
+
   await saveProgress(next)
-  return { earnedXp, next }
+  return { earnedXp, next, newBadges }
 }
 
 function prevDay(isoDate) {

@@ -1,7 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { translateAndSpeak, tts } from '../api.js'
+import { translate, tts, ttsWithCache } from '../api.js'
 import { addToHistory, starHistoryItem, getHistory, addToTripDeck, removeFromTripDeck } from '../data/store.js'
+import { awardEvent } from '../data/progress.js'
+import { prefetchPhrasepack, getPrefetchStatus } from '../data/audioCache.js'
 import { itemsByUnit } from '../content/index.js'
 import { NavIco } from '../design/primitives.jsx'
 
@@ -18,6 +20,7 @@ export default function Travel() {
   const [romaji, setRomaji] = useState('')
   const [audioData, setAudioData] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [audioLoading, setAudioLoading] = useState(false)
   const [error, setError] = useState('')
   const [playing, setPlaying] = useState(false)
   const [listening, setListening] = useState(false)
@@ -33,6 +36,7 @@ export default function Travel() {
   const [currentHistoryId, setCurrentHistoryId] = useState(null)
   const [showCard, setShowCard] = useState(false)
   const [phrasebookOpen, setPhrasebookOpen] = useState(false)
+  const [prefetch, setPrefetch] = useState(null) // { done, total } while actively caching
   const audioRef = useRef(null)
   const inputRef = useRef(null)
   const recognitionRef = useRef(null)
@@ -43,6 +47,50 @@ export default function Travel() {
 
   // Load translation history on mount
   useEffect(() => { getHistory('local').then(setHistory) }, [])
+
+  // Prefetch phrasebook audio for offline use — one pass on mount, retried
+  // when the network comes back online. Fire-and-forget; never throws.
+  useEffect(() => {
+    let cancelled = false
+    let running = false
+    const run = async () => {
+      if (running || cancelled || !PHRASEBOOK.length) return
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return
+      running = true
+      try {
+        const status = await getPrefetchStatus(PHRASEBOOK, voice)
+        if (cancelled || status.cached >= status.total) return
+        setPrefetch({ done: status.cached, total: status.total })
+        await prefetchPhrasepack(PHRASEBOOK, voice, (done, total) => {
+          if (!cancelled) setPrefetch({ done, total })
+        })
+      } finally {
+        running = false
+        if (!cancelled) setPrefetch(null)
+      }
+    }
+    run()
+    const onOnline = () => { run() }
+    window.addEventListener('online', onOnline)
+    return () => {
+      cancelled = true
+      window.removeEventListener('online', onOnline)
+    }
+  }, [voice])
+
+  // Browser speech synthesis fallback (used while high-quality TTS is loading)
+  const speakBrowser = useCallback((text) => {
+    if (!window.speechSynthesis) return
+    const utter = new SpeechSynthesisUtterance(text)
+    utter.lang = 'ja-JP'
+    const jaVoice = window.speechSynthesis.getVoices().find(v => v.lang.startsWith('ja'))
+    if (jaVoice) utter.voice = jaVoice
+    utter.onstart = () => setPlaying(true)
+    utter.onend = () => setPlaying(false)
+    utter.onerror = () => setPlaying(false)
+    window.speechSynthesis.cancel()
+    window.speechSynthesis.speak(utter)
+  }, [])
 
   // Play audio helper
   // Track last blob URL so we can revoke it
@@ -96,34 +144,77 @@ export default function Travel() {
     }
   }, [])
 
-  // Handle translate + speak
-  const handleTranslate = useCallback(async () => {
-    const text = input.trim()
-    if (!text) return
+  // Phase 1: translate → show result. Phase 2: TTS in background → enable play.
+  const doTranslate = useCallback(async (text) => {
     setLoading(true)
     setError('')
     setJapanese('')
     setRomaji('')
     setAudioData(null)
     setCurrentHistoryId(null)
+
+    let translationResult
     try {
-      const result = await translateAndSpeak(text, voice)
-      setJapanese(result.japanese)
-      setRomaji(result.romaji || '')
-      const audio = result.audio
-      if (audio && (audio.base64 || audio.url)) {
-        setAudioData(audio)
-        if (autoPlay) playAudio(audio)
-      }
-      const saved = await addToHistory({ uid: 'local', en: text, japanese: result.japanese, reading: result.reading || '', romaji: result.romaji || '', segments: result.segments || [], voice })
+      translationResult = await translate(text)
+      setJapanese(translationResult.japanese)
+      setRomaji(translationResult.romaji || '')
+      const saved = await addToHistory({ uid: 'local', en: text, japanese: translationResult.japanese, reading: translationResult.reading || '', romaji: translationResult.romaji || '', segments: translationResult.segments || [], voice })
       setCurrentHistoryId(saved.id)
       setHistory(await getHistory('local'))
     } catch (err) {
       setError(err.message)
-    } finally {
       setLoading(false)
+      return
     }
-  }, [input, voice, autoPlay, playAudio])
+    setLoading(false)
+
+    if (autoPlay) speakBrowser(translationResult.japanese)
+
+    setAudioLoading(true)
+    try {
+      const ttsData = await ttsWithCache(translationResult.japanese, voice)
+      if (ttsData?.audio && (ttsData.audio.base64 || ttsData.audio.url)) {
+        setAudioData(ttsData.audio)
+        window.speechSynthesis?.cancel()
+        if (autoPlay) playAudio(ttsData.audio)
+      }
+    } catch {
+      // TTS failure is non-fatal; browser speech remains as fallback
+    } finally {
+      setAudioLoading(false)
+    }
+  }, [voice, autoPlay, playAudio, speakBrowser])
+
+  const handleTranslate = useCallback(() => {
+    const text = input.trim()
+    if (!text) return
+    doTranslate(text)
+  }, [input, doTranslate])
+
+  // Phrasebook tap: show the phrase immediately (no translate round-trip —
+  // the Japanese is already authored) and play audio cache-first so it works
+  // in airplane mode once prefetched.
+  const handlePhrasebookTap = useCallback(async (phrase) => {
+    setPhrasebookOpen(false)
+    setInput(phrase.en)
+    setJapanese(phrase.ja)
+    setRomaji(phrase.romaji || '')
+    setAudioData(null)
+    setError('')
+    setCurrentHistoryId(null)
+    setAudioLoading(true)
+    try {
+      const result = await ttsWithCache(phrase.ja, voice)
+      if (result?.audio?.base64) {
+        setAudioData(result.audio)
+        if (autoPlay) playAudio(result.audio)
+      }
+    } catch {
+      // Offline and not yet cached — the text is still shown, just no audio.
+    } finally {
+      setAudioLoading(false)
+    }
+  }, [voice, autoPlay, playAudio])
 
   // Handle Enter key
   const handleKeyDown = (e) => {
@@ -133,10 +224,11 @@ export default function Travel() {
     }
   }
 
-  // Replay audio
+  // Replay audio — high-quality if available, browser speech as fallback
   const handlePlay = useCallback(() => {
     if (audioData) playAudio(audioData)
-  }, [audioData, playAudio])
+    else if (japanese) speakBrowser(japanese)
+  }, [audioData, japanese, playAudio, speakBrowser])
 
   // Auto-play when the show-card opens
   useEffect(() => {
@@ -173,28 +265,11 @@ export default function Travel() {
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript
       setInput(transcript)
-      // Auto-translate after dictation
-      setLoading(true)
-      setError('')
-      setJapanese('')
-      setRomaji('')
-      setAudioData(null)
-      translateAndSpeak(transcript, voice)
-        .then(result => {
-          setJapanese(result.japanese)
-          setRomaji(result.romaji || '')
-          const audio = result.audio
-          if (audio && (audio.base64 || audio.url)) {
-            setAudioData(audio)
-            if (autoPlay) playAudio(audio)
-          }
-        })
-        .catch(err => setError(err.message))
-        .finally(() => setLoading(false))
+      doTranslate(transcript)
     }
 
     recognition.start()
-  }, [listening, voice, autoPlay, playAudio])
+  }, [listening, doTranslate])
 
   const currentStarred = !!history.find(h => h.id === currentHistoryId)?.starred
 
@@ -223,8 +298,9 @@ export default function Travel() {
             {romaji && <div className="romaji" lang="ja-Latn">{romaji}</div>}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <button
-                className={`play-btn ${playing ? 'playing' : ''}`}
+                className={`play-btn ${playing ? 'playing' : ''} ${!audioData ? 'browser-audio' : ''}`}
                 onClick={handlePlay}
+                title={audioLoading ? 'Browser speech — high-quality audio loading…' : !audioData ? 'Browser speech — TTS unavailable' : undefined}
                 aria-label="Play Japanese pronunciation"
               >
                 {playing ? '◉' : '▶'}
@@ -237,8 +313,12 @@ export default function Travel() {
                     await starHistoryItem(currentHistoryId, newStarred)
                     const item = history.find(h => h.id === currentHistoryId)
                     if (item) {
-                      if (newStarred) await addToTripDeck({ ...item, starred: true })
-                      else await removeFromTripDeck(currentHistoryId)
+                      if (newStarred) {
+                        await addToTripDeck({ ...item, starred: true })
+                        awardEvent('trip-deck-add', {}).catch(() => { /* never block */ })
+                      } else {
+                        await removeFromTripDeck(currentHistoryId)
+                      }
                     }
                     setHistory(await getHistory('local'))
                   }}
@@ -261,6 +341,11 @@ export default function Travel() {
       <button className="phrasebook-chip" onClick={() => setPhrasebookOpen(true)}>
         <NavIco name="learn" size={16} /> Phrasebook
       </button>
+      {prefetch && (
+        <div style={{ fontSize: 12, opacity: 0.55, marginTop: 4 }} aria-live="polite">
+          Caching phrases for offline… {prefetch.done}/{prefetch.total}
+        </div>
+      )}
 
       {/* Error */}
       {error && <div className="error-msg">{error}</div>}
@@ -347,8 +432,12 @@ export default function Travel() {
                   onClick={async () => {
                     const newStarred = !item.starred
                     await starHistoryItem(item.id, newStarred)
-                    if (newStarred) await addToTripDeck({ ...item, starred: true })
-                    else await removeFromTripDeck(item.id)
+                    if (newStarred) {
+                      await addToTripDeck({ ...item, starred: true })
+                      awardEvent('trip-deck-add', {}).catch(() => { /* never block */ })
+                    } else {
+                      await removeFromTripDeck(item.id)
+                    }
                     setHistory(await getHistory('local'))
                   }}>
                   {item.starred ? '★' : '☆'}
@@ -371,8 +460,9 @@ export default function Travel() {
             <div className="show-card-ja" lang="ja">{japanese}</div>
             {romaji && <div className="show-card-romaji">{romaji}</div>}
             <button
-              className={`show-card-play ${playing ? 'playing' : ''}`}
+              className={`show-card-play ${playing ? 'playing' : ''} ${!audioData ? 'browser-audio' : ''}`}
               onClick={handlePlay}
+              title={audioLoading ? 'Browser speech — high-quality audio loading…' : !audioData ? 'Browser speech — TTS unavailable' : undefined}
               aria-label="Play"
             >{playing ? '◉' : '▶'}</button>
             <button className="show-card-close" onClick={() => setShowCard(false)}>✕ tap to close</button>
@@ -388,12 +478,14 @@ export default function Travel() {
               <h2>Survival Phrases</h2>
               <button className="phrasebook-close" onClick={() => setPhrasebookOpen(false)}>✕</button>
             </div>
+            {prefetch && (
+              <div style={{ fontSize: 12, opacity: 0.55, padding: '0 16px 8px' }} aria-live="polite">
+                Caching phrases for offline… {prefetch.done}/{prefetch.total}
+              </div>
+            )}
             <div className="phrasebook-list">
               {PHRASEBOOK.map(phrase => (
-                <div key={phrase.id} className="phrasebook-row" onClick={() => {
-                  setInput(phrase.en)
-                  setPhrasebookOpen(false)
-                }}>
+                <div key={phrase.id} className="phrasebook-row" onClick={() => handlePhrasebookTap(phrase)}>
                   <div className="phrasebook-ja" lang="ja">{phrase.ja}</div>
                   <div className="phrasebook-en">{phrase.en}</div>
                   <div className="phrasebook-rm">{phrase.romaji}</div>

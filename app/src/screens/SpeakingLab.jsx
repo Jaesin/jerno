@@ -38,26 +38,48 @@ function focusPrompt(item) {
   return 'Listen: does the pitch rise or fall?'
 }
 
-// TTS audio hook — fetch base64 audio, cache blob URLs per text
+// TTS audio hook — fetch base64 audio, cache blob URLs per text.
+// The cache maps text → Promise<blobUrl|null> so concurrent prefetch + play
+// calls for the same phrase share one network request.
 function useTTSAudio() {
   const cacheRef = useRef(new Map())
   const audioRef = useRef(null)
   const [playing, setPlaying] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  const fetchUrl = useCallback((text) => {
+    let promise = cacheRef.current.get(text)
+    if (!promise) {
+      promise = (async () => {
+        const result = await tts(text)
+        const b64 = result?.audio?.base64
+        if (!b64) return null
+        const binary = atob(b64)
+        const bytes = new Uint8Array(binary.length)
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+        return URL.createObjectURL(new Blob([bytes], { type: 'audio/mpeg' }))
+      })().catch(() => {
+        // Drop failed fetches from the cache so a replay can retry
+        cacheRef.current.delete(text)
+        return null
+      })
+      cacheRef.current.set(text, promise)
+    }
+    return promise
+  }, [])
+
+  // Warm the cache without playing — used to pre-fetch the next question
+  const prefetch = useCallback((text) => {
+    if (text) fetchUrl(text)
+  }, [fetchUrl])
 
   const play = useCallback(async (text) => {
     if (!text) return
     try {
-      let url = cacheRef.current.get(text)
-      if (!url) {
-        const result = await tts(text)
-        const b64 = result?.audio?.base64
-        if (!b64) return
-        const binary = atob(b64)
-        const bytes = new Uint8Array(binary.length)
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-        url = URL.createObjectURL(new Blob([bytes], { type: 'audio/mpeg' }))
-        cacheRef.current.set(text, url)
-      }
+      setLoading(true)
+      const url = await fetchUrl(text)
+      setLoading(false)
+      if (!url) return
       if (audioRef.current) audioRef.current.pause()
       const audio = new Audio(url)
       audioRef.current = audio
@@ -67,20 +89,23 @@ function useTTSAudio() {
       await audio.play()
     } catch {
       // Audio is best-effort: never block the UI on TTS failures
+      setLoading(false)
       setPlaying(false)
     }
-  }, [])
+  }, [fetchUrl])
 
   useEffect(() => {
     const cache = cacheRef.current
     return () => {
       if (audioRef.current) audioRef.current.pause()
-      for (const url of cache.values()) URL.revokeObjectURL(url)
+      for (const promise of cache.values()) {
+        Promise.resolve(promise).then(url => { if (url) URL.revokeObjectURL(url) })
+      }
       cache.clear()
     }
   }, [])
 
-  return { play, playing }
+  return { play, prefetch, playing, loading }
 }
 
 // ---------------------------------------------------------------------------
@@ -218,6 +243,9 @@ function EchoBooth() {
           .filter(r => r.after.stage !== r.before.stage && r.after.step > r.before.step)
           .map(r => ({ from: r.before.stage, to: r.after.stage }))
         awardEvent('session', { exerciseCount: newResults.length, stageUps })
+          // chained so the two progress saves don't race; 'speaking' marks
+          // quest q3 (family-action proxy) — see progress.js
+          .then(() => awardEvent('speaking', {}))
           .catch(() => { /* never block */ })
       }
     } else {
@@ -342,81 +370,114 @@ function EchoBooth() {
 // ---------------------------------------------------------------------------
 
 const MINIMAL_PAIRS = [
-  { id: 'mp-byouin-biyouin', audio: 'びょういん', a: { ja: 'びょういん', en: 'hospital' }, b: { ja: 'びよういん', en: 'beauty salon' } },
-  { id: 'mp-kite-kitte',     audio: 'きて',      a: { ja: 'きて', en: 'come here' },     b: { ja: 'きって', en: 'stamp / cut' } },
-  { id: 'mp-obasan-obaasan', audio: 'おばさん',  a: { ja: 'おばさん', en: 'aunt / lady' }, b: { ja: 'おばあさん', en: 'grandmother' } },
-  { id: 'mp-ojisan-ojiisan', audio: 'おじさん',  a: { ja: 'おじさん', en: 'uncle / man' }, b: { ja: 'おじいさん', en: 'grandfather' } },
-  { id: 'mp-iku-iiku',       audio: 'いく',      a: { ja: 'いく', en: 'to go' },          b: { ja: 'いっく', en: '(exaggerated going)' } },
-  { id: 'mp-suki-tsuki',     audio: 'すき',      a: { ja: 'すき', en: 'like / gap' },      b: { ja: 'つき', en: 'moon / month' } },
-  { id: 'mp-hashi-hashi2',   audio: 'はし',      a: { ja: 'はし (箸)', en: 'chopsticks' }, b: { ja: 'はし (橋)', en: 'bridge' } },
-  { id: 'mp-uchi-uchi2',     audio: 'うち',      a: { ja: 'うち (家)', en: 'home' },       b: { ja: 'うち (内)', en: 'inside / we' } },
-  { id: 'mp-koko-kooko',     audio: 'ここ',      a: { ja: 'ここ', en: 'here' },            b: { ja: 'こうこう', en: 'high school' } },
-  { id: 'mp-soko-sooko',     audio: 'そこ',      a: { ja: 'そこ', en: 'there' },           b: { ja: 'そうこ', en: 'warehouse' } },
+  { audio: 'おばさん',   choices: ['おばさん (aunt)', 'おばあさん (grandmother)'],            correct: 'おばさん (aunt)',           hint: "short 'a'" },
+  { audio: 'おばあさん', choices: ['おばさん (aunt)', 'おばあさん (grandmother)'],            correct: 'おばあさん (grandmother)',  hint: "long 'aa'" },
+  { audio: 'きって',     choices: ['きて (come)', 'きって (stamp)'],                          correct: 'きって (stamp)',            hint: 'double consonant' },
+  { audio: 'きて',       choices: ['きて (come)', 'きって (stamp)'],                          correct: 'きて (come)',               hint: "single 't'" },
+  { audio: 'びょういん', choices: ['びょういん (hospital)', 'びよういん (beauty salon)'],     correct: 'びょういん (hospital)',     hint: 'small ょ' },
+  { audio: 'びよういん', choices: ['びょういん (hospital)', 'びよういん (beauty salon)'],     correct: 'びよういん (beauty salon)', hint: 'big よ' },
+  { audio: 'ここ',       choices: ['ここ (here)', 'こうこう (high school)'],                  correct: 'ここ (here)',               hint: 'short' },
+  { audio: 'さくら',     choices: ['さくら (cherry blossom)', 'さっか (writer)'],             correct: 'さくら (cherry blossom)',   hint: 'no stop' },
+  { audio: 'いしゃ',     choices: ['いしゃ (doctor)', 'いすや (chair shop)'],                 correct: 'いしゃ (doctor)',           hint: 'sha sound' },
+  { audio: 'すみません', choices: ['すみません (excuse me)', 'しみません (doesn’t stain)'], correct: 'すみません (excuse me)',  hint: 'su not shi' },
 ]
 
+// Shuffle the question order, and shuffle each question's choice order so the
+// correct answer isn't always in the same position.
 function buildDojoRound() {
-  // Shuffle the pairs, and shuffle the choice order per question so the
-  // correct answer isn't always in the same position.
   return shuffle(MINIMAL_PAIRS).slice(0, DOJO_ROUND_SIZE).map(pair => ({
-    pair,
-    choices: shuffle([
-      { key: 'a', ...pair.a },
-      { key: 'b', ...pair.b },
-    ]),
-    correctKey: 'a', // pair.audio is always the "a" reading
+    ...pair,
+    choices: shuffle(pair.choices),
   }))
+}
+
+// Choices read "おばさん (aunt)" — split into JP headline + EN gloss for the tile
+function splitChoice(choice) {
+  const m = choice.match(/^(.*?)\s*\((.*)\)$/)
+  return m ? { ja: m[1], en: m[2] } : { ja: choice, en: '' }
+}
+
+// Plant growth stage for the end screen: <5 seed, 5-7 sprout, 8-9 bamboo, 10 blossom
+function dojoPlantStage(score) {
+  if (score >= 10) return 3
+  if (score >= 8) return 2
+  if (score >= 5) return 1
+  return 0
 }
 
 function MinimalPairDojo() {
   const audio = useTTSAudio()
   const [round, setRound] = useState(() => buildDojoRound())
   const [index, setIndex] = useState(0)
+  const [phase, setPhase] = useState('idle') // 'idle' | 'playing' | 'result' | 'done'
   const [picked, setPicked] = useState(null)
   const [score, setScore] = useState(0)
-  const [done, setDone] = useState(false)
-  const playRef = useRef(audio.play)
-  playRef.current = audio.play
+  const advanceTimerRef = useRef(null)
+  const audioRef = useRef(audio)
+  audioRef.current = audio
 
-  const question = round[index]
+  const question = phase === 'done' ? null : round[index]
 
-  // Auto-play the audio for each question
+  // Auto-play this question's audio, and pre-fetch the next question's
   useEffect(() => {
-    if (!done && question) playRef.current(question.pair.audio)
-  }, [index, done, question])
+    if (!question) return
+    let cancelled = false
+    setPhase('idle')
+    audioRef.current.play(question.audio).finally(() => {
+      if (!cancelled) setPhase(p => (p === 'idle' ? 'playing' : p))
+    })
+    const next = round[index + 1]
+    if (next) audioRef.current.prefetch(next.audio)
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [round, index])
 
-  const handlePick = (key) => {
-    if (picked !== null) return
-    setPicked(key)
-    const correct = key === question.correctKey
-    if (correct) setScore(s => s + 1)
-    setTimeout(() => {
+  useEffect(() => () => clearTimeout(advanceTimerRef.current), [])
+
+  const handlePick = (choice) => {
+    if (phase === 'result' || phase === 'done') return
+    const correct = choice === question.correct
+    const newScore = score + (correct ? 1 : 0)
+    setPicked(choice)
+    setScore(newScore)
+    setPhase('result')
+    clearTimeout(advanceTimerRef.current)
+    advanceTimerRef.current = setTimeout(() => {
       setPicked(null)
-      if (index + 1 >= round.length) setDone(true)
-      else setIndex(index + 1)
-    }, 1500)
+      if (index + 1 >= round.length) {
+        setPhase('done')
+        // 1 XP per correct answer — best-effort, never block the end screen
+        awardEvent('speaking', { score: newScore }).catch(() => {})
+      } else {
+        setIndex(index + 1)
+      }
+    }, correct ? 800 : 1500)
   }
 
   const restart = () => {
+    clearTimeout(advanceTimerRef.current)
     setRound(buildDojoRound())
     setIndex(0)
     setPicked(null)
     setScore(0)
-    setDone(false)
+    setPhase('idle')
   }
 
-  if (done) {
+  if (phase === 'done') {
     const message = score === round.length
-      ? 'Perfect ears! 🏆'
-      : score >= round.length * 0.7
-        ? 'Sharp listening! Keep it up 👂'
-        : 'Tricky sounds — they get easier with reps 💪'
+      ? 'Perfect ears!'
+      : score >= 8
+        ? 'Sharp listening — almost there'
+        : score >= 5
+          ? 'Good ear — keep training'
+          : 'Tricky sounds — they get easier with reps'
     return (
       <div className="speaking-end">
-        <Plant stage={score === round.length ? 3 : 2} size={56} />
+        <Plant stage={dojoPlantStage(score)} size={56} />
         <h2>{score} / {round.length}</h2>
         <p className="today-card-sub">{message}</p>
-        <button type="button" className="jn-btn jn-btn--green" onClick={restart}>
-          Another round
+        <button type="button" className="jn-btn jn-btn--pink" onClick={restart}>
+          Play again
         </button>
       </div>
     )
@@ -424,32 +485,36 @@ function MinimalPairDojo() {
 
   return (
     <div className="mp-pair">
-      <div className="exercise-prompt" style={{ textAlign: 'center' }}>
-        {index + 1} / {round.length} · What did you hear?
+      <div className="mp-header">
+        <div className="jn-eyebrow" style={{ color: 'var(--pink)' }}>What did you hear?</div>
+        <div className="mp-counter">{index + 1} / {round.length}</div>
       </div>
+      <div className="mp-hint">Listen for: {question.hint}</div>
       <div className="mp-audio-prompt">
         <button
           type="button"
-          className={`audio-btn big${audio.playing ? ' playing' : ''}`}
-          onClick={() => audio.play(question.pair.audio)}
-          aria-label="Play audio"
+          className={`mp-audio-btn${audio.playing ? ' playing' : ''}`}
+          onClick={() => audio.play(question.audio)}
+          disabled={audio.loading}
+          aria-label={audio.loading ? 'Loading audio' : 'Play audio'}
         >
-          🔊
+          {audio.loading ? <span className="spinner" /> : '♪'}
         </button>
-        <div className="mp-ja-hint">Tap to replay</div>
+        <div className="mp-ja-hint">{audio.loading ? 'Loading audio…' : 'Tap to replay'}</div>
       </div>
       <div className="mp-choices">
         {question.choices.map(choice => {
+          const { ja, en } = splitChoice(choice)
           let cls = 'mp-choice'
-          if (picked !== null) {
-            if (choice.key === question.correctKey) cls += ' correct'
-            else if (choice.key === picked) cls += ' wrong'
+          if (phase === 'result') {
+            if (choice === question.correct) cls += ' correct'
+            else if (choice === picked) cls += ' wrong'
           }
           return (
-            <button key={choice.key} type="button" className={cls} disabled={picked !== null}
-              onClick={() => handlePick(choice.key)}>
-              <div className="mp-choice-ja">{choice.ja}</div>
-              <div className="mp-choice-en">{choice.en}</div>
+            <button key={choice} type="button" className={cls} disabled={phase === 'result'}
+              onClick={() => handlePick(choice)}>
+              <div className="mp-choice-ja">{ja}</div>
+              {en && <div className="mp-choice-en">{en}</div>}
             </button>
           )
         })}

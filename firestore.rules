@@ -5,20 +5,23 @@ service cloud.firestore {
       return request.auth != null
         && exists(/databases/$(database)/documents/members/$(request.auth.uid));
     }
-    function secret() {
-      return get(/databases/$(database)/documents/config/secret).data.key;
+
+    match /invites/{token} {
+      allow get: if true;
+      allow list: if isMember();
+      allow create: if isMember() && token.size() >= 20;
+      allow delete: if isMember();
     }
+
     match /members/{uid} {
-      allow create, update: if request.auth != null && request.auth.uid == uid
-                            && request.resource.data.key == secret();
-      allow read: if isMember();
-      allow delete: if false;
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 1
+        && request.resource.data.name.size() <= 40
+        && request.resource.data.inviteToken is string
+        && exists(/databases/$(database)/documents/invites/$(request.resource.data.inviteToken));
+      allow read, delete: if isMember();
     }
-    match /config/secret   { allow read, write: if false; }
-    match /config/features { allow read: if true; allow write: if isMember(); }
-    match /users/{uid}/progress { allow read: if isMember(); allow write: if isMember() && request.auth.uid == uid; }
-    match /users/{uid}/{document=**} { allow read, write: if isMember() && request.auth.uid == uid; }
-    match /shared/{document=**}     { allow read, write: if isMember(); }
-    match /translations/{id}        { allow read: if isMember(); allow write: if false; }
   }
 }

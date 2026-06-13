@@ -111,5 +111,15 @@ export function buildSession(srsStates, profile = {}, now = Date.now(), tripItem
 
   // Limit session length for kid mode
   const limit = kidMode ? 10 : 14
-  return exercises.slice(0, limit)
+  const out = exercises.slice(0, limit)
+
+  // Prevent back-to-back same exercise type (feel issue, spec 22):
+  // when two neighbours share a type, swap the second with the item after it.
+  for (let i = 1; i < out.length; i++) {
+    if (out[i].exerciseType === out[i - 1].exerciseType && i + 1 < out.length) {
+      ;[out[i], out[i + 1]] = [out[i + 1], out[i]]
+    }
+  }
+
+  return out
 }
