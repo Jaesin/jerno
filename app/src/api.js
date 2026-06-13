@@ -1,10 +1,14 @@
 import { getCachedAudio, setCachedAudio } from './data/audioCache.js'
+import { getCachedTranslation, setCachedTranslation } from './data/translationCache.js'
 
 const API_BASE = import.meta.env.DEV
   ? 'http://localhost:5001'
   : 'https://jerno-functions.jaesinner.workers.dev'
 
 export async function translate(text, formality = 'polite') {
+  const cached = getCachedTranslation(text, formality)
+  if (cached) return { ...cached, cached: true }
+
   const res = await fetch(`${API_BASE}/translate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -14,7 +18,9 @@ export async function translate(text, formality = 'polite') {
     const err = await res.json().catch(() => ({ error: { message: res.statusText } }))
     throw new Error(err.error?.message || 'Translation failed')
   }
-  return res.json()
+  const result = await res.json()
+  setCachedTranslation(text, formality, result)
+  return result
 }
 
 export async function tts(text, voice = 'ja-JP-NanamiNeural') {
