@@ -168,8 +168,6 @@ export default function Travel() {
     }
     setLoading(false)
 
-    if (autoPlay) speakBrowser(translationResult.japanese)
-
     setAudioLoading(true)
     try {
       const ttsData = await ttsWithCache(translationResult.japanese, voice)
