@@ -69,28 +69,10 @@ export function Torii({ size = 22, color = 'currentColor' }) {
   )
 }
 
-/* ---------- Jerno-inu (shiba mascot) — small, flat, friendly --------------- */
+/* ---------- Jerno-inu (shiba mascot) --------------------------------------- */
 export function Inu({ size = 40 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" style={{ display: 'block' }} aria-hidden="true">
-      {/* ears */}
-      <path d="M10 16 Q9 5 16 8 Q17 14 14 18 Z" fill="#D98A3D" />
-      <path d="M38 16 Q39 5 32 8 Q31 14 34 18 Z" fill="#D98A3D" />
-      <path d="M12 14 Q11.5 8 15.5 9.6 Q16 13 14.2 15.6 Z" fill="#9A5A24" />
-      <path d="M36 14 Q36.5 8 32.5 9.6 Q32 13 33.8 15.6 Z" fill="#9A5A24" />
-      {/* face */}
-      <path d="M24 11 Q40 12 39 27 Q38 40 24 41 Q10 40 9 27 Q8 12 24 11 Z" fill="#E7A65A" />
-      {/* cheeks / muzzle cream */}
-      <path d="M24 22 Q34 22 33 31 Q31 39 24 39 Q17 39 15 31 Q14 22 24 22 Z" fill="#FBEFD9" />
-      {/* eyes */}
-      <ellipse cx="18.5" cy="24" rx="2.1" ry="2.6" fill="#2A1C10" />
-      <ellipse cx="29.5" cy="24" rx="2.1" ry="2.6" fill="#2A1C10" />
-      <circle cx="19.2" cy="23.1" r="0.7" fill="#fff" />
-      <circle cx="30.2" cy="23.1" r="0.7" fill="#fff" />
-      {/* nose + smile */}
-      <ellipse cx="24" cy="29.5" rx="2.4" ry="1.8" fill="#2A1C10" />
-      <path d="M24 31.3 Q24 34 21 34.4 M24 31.3 Q24 34 27 34.4" stroke="#2A1C10" strokeWidth="1.3" strokeLinecap="round" />
-    </svg>
+    <img src="/inu.svg" width={size} height={size} alt="" aria-hidden="true" style={{ display: 'block', objectFit: 'contain' }} />
   )
 }
 
