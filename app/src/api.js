@@ -1,9 +1,25 @@
 import { getCachedAudio, setCachedAudio } from './data/audioCache.js'
 import { getCachedTranslation, setCachedTranslation } from './data/translationCache.js'
+import { auth, ensureSignedIn } from './firebase.js'
 
 const API_BASE = import.meta.env.DEV
   ? 'http://localhost:5001'
   : 'https://jerno-functions.jaesinner.workers.dev'
+
+// Build request headers with the caller's Firebase ID token attached. The SDK
+// refreshes the token automatically; we just ask for the current one. If auth
+// can't be resolved (offline first paint, etc.) we send the request without a
+// token and let the Worker decide — local dev skips verification entirely.
+async function authHeaders() {
+  const headers = { 'Content-Type': 'application/json' }
+  try {
+    const user = auth.currentUser ?? (await ensureSignedIn())
+    if (user) headers.Authorization = `Bearer ${await user.getIdToken()}`
+  } catch {
+    /* leave Authorization off — the request may still succeed in dev */
+  }
+  return headers
+}
 
 export async function translate(text, formality = 'polite') {
   const cached = getCachedTranslation(text, formality)
@@ -11,7 +27,7 @@ export async function translate(text, formality = 'polite') {
 
   const res = await fetch(`${API_BASE}/translate`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await authHeaders(),
     body: JSON.stringify({ text, formality }),
   })
   if (!res.ok) {
@@ -26,7 +42,7 @@ export async function translate(text, formality = 'polite') {
 export async function tts(text, voice = 'ja-JP-NanamiNeural') {
   const res = await fetch(`${API_BASE}/tts`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await authHeaders(),
     body: JSON.stringify({ text, voice }),
   })
   if (!res.ok) {
