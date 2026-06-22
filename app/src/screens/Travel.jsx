@@ -103,6 +103,24 @@ export default function Travel() {
     if (japanese) speak(japanese, { voice })
   }, [japanese, voice, speak])
 
+  // Switching voice while a result is on screen: the new voice has its own
+  // cloud clip (cache is keyed by text+voice), so fetch it and re-play —
+  // mirroring a fresh translate — instead of leaving stale/last-voice audio
+  // until a manual replay. Gated on an actual voice change so it doesn't
+  // double-fire alongside doTranslate's own warm+speak.
+  const prevVoiceRef = useRef(voice)
+  useEffect(() => {
+    if (prevVoiceRef.current === voice) return
+    prevVoiceRef.current = voice
+    if (!japanese) return
+    let cancelled = false
+    ;(async () => {
+      await warmCloud(japanese)
+      if (!cancelled && autoPlay) speak(japanese, { voice })
+    })()
+    return () => { cancelled = true }
+  }, [voice, japanese, warmCloud, autoPlay, speak])
+
   // Phase 1: translate → show result. Phase 2: speak/warm cloud audio.
   const doTranslate = useCallback(async (text) => {
     setLoading(true)
