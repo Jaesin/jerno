@@ -1,9 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { translate, tts, ttsWithCache } from '../api.js'
+import { useTranslate, useSpeaker, useT10nClient } from '@jaesin/t10n-client/react'
 import { addToHistory, starHistoryItem, getHistory, addToTripDeck, removeFromTripDeck } from '../data/store.js'
 import { awardEvent } from '../data/progress.js'
-import { prefetchPhrasepack, getPrefetchStatus } from '../data/audioCache.js'
 import { itemsByUnit } from '../content/index.js'
 import { NavIco } from '../design/primitives.jsx'
 
@@ -18,11 +17,8 @@ export default function Travel() {
   const [input, setInput] = useState('')
   const [japanese, setJapanese] = useState('')
   const [romaji, setRomaji] = useState('')
-  const [audioData, setAudioData] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [audioLoading, setAudioLoading] = useState(false)
   const [error, setError] = useState('')
-  const [playing, setPlaying] = useState(false)
   const [listening, setListening] = useState(false)
   const [autoPlay, setAutoPlay] = useState(() => {
     const saved = localStorage.getItem('jerno-autoplay')
@@ -36,10 +32,37 @@ export default function Travel() {
   const [currentHistoryId, setCurrentHistoryId] = useState(null)
   const [showCard, setShowCard] = useState(false)
   const [phrasebookOpen, setPhrasebookOpen] = useState(false)
-  const [prefetch, setPrefetch] = useState(null) // { done, total } while actively caching
-  const audioRef = useRef(null)
   const inputRef = useRef(null)
   const recognitionRef = useRef(null)
+
+  // t10n-client: English→Japanese translation + the shared speech engine
+  // (cloud TTS with a web-speech fallback, browser audio cache). `speaking`
+  // reflects the single "now playing"; `engineFor` says which engine a tap
+  // will use right now ('cloud' once a clip is cached, else 'device').
+  const translateText = useTranslate({ from: 'en', to: 'ja', register: 'polite' })
+  const client = useT10nClient()
+  const { speak, engineFor, capabilities, speaking } = useSpeaker()
+  const [cachedCount, setCachedCount] = useState(0)
+
+  // Fetch + cache the high-quality cloud clip for `text` (no-op if already
+  // cached or offline). Returns true once a cloud clip is available locally.
+  // Writing to the shared client cache flips the speaker's engineFor to
+  // 'cloud', so a following speak() plays the MP3 instead of device speech.
+  // This is why autoplay waits on it: otherwise a fresh phrase would speak via
+  // the robotic web-speech voice (and, after the translate round-trip, the
+  // stale user-gesture can leave that blocked entirely on iOS).
+  const warmCloud = useCallback(async (text) => {
+    if (!text || !capabilities.cloud) return false
+    if (client.cache.has(text, voice)) return true
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return false
+    try {
+      const res = await client.fetchSpeech({ text, voice })
+      if (res?.audio?.base64) await client.cache.set(text, voice, res.audio)
+    } catch {
+      // offline / 4xx — device speech still covers it
+    }
+    return client.cache.has(text, voice)
+  }, [client, voice, capabilities.cloud])
 
   // Persist preferences
   useEffect(() => { localStorage.setItem('jerno-autoplay', autoPlay) }, [autoPlay])
@@ -48,140 +71,79 @@ export default function Travel() {
   // Load translation history on mount
   useEffect(() => { getHistory('local').then(setHistory) }, [])
 
-  // Prefetch phrasebook audio for offline use — one pass on mount, retried
-  // when the network comes back online. Fire-and-forget; never throws.
+  // Warm the survival phrasebook's cloud clips for offline use — one pass on
+  // mount, re-run on voice change or when the network returns. Sequential so we
+  // don't fire a dozen TTS requests at once; counts up live for the indicator.
+  const phraseTotal = PHRASEBOOK.filter(p => p.ja).length
   useEffect(() => {
+    if (!capabilities.cloud || phraseTotal === 0) return undefined
     let cancelled = false
-    let running = false
+    const texts = PHRASEBOOK.filter(p => p.ja).map(p => p.ja)
+    const recount = () => { if (!cancelled) setCachedCount(texts.filter(t => client.cache.has(t, voice)).length) }
     const run = async () => {
-      if (running || cancelled || !PHRASEBOOK.length) return
       if (typeof navigator !== 'undefined' && navigator.onLine === false) return
-      running = true
-      try {
-        const status = await getPrefetchStatus(PHRASEBOOK, voice)
-        if (cancelled || status.cached >= status.total) return
-        setPrefetch({ done: status.cached, total: status.total })
-        await prefetchPhrasepack(PHRASEBOOK, voice, (done, total) => {
-          if (!cancelled) setPrefetch({ done, total })
-        })
-      } finally {
-        running = false
-        if (!cancelled) setPrefetch(null)
+      for (const t of texts) {
+        if (cancelled) return
+        await warmCloud(t)
+        recount()
       }
     }
+    recount() // reflect already-cached clips immediately
     run()
     const onOnline = () => { run() }
     window.addEventListener('online', onOnline)
-    return () => {
-      cancelled = true
-      window.removeEventListener('online', onOnline)
-    }
-  }, [voice])
+    return () => { cancelled = true; window.removeEventListener('online', onOnline) }
+  }, [voice, warmCloud, client, capabilities.cloud, phraseTotal])
 
-  // Browser speech synthesis fallback (used while high-quality TTS is loading)
-  const speakBrowser = useCallback((text) => {
-    if (!window.speechSynthesis) return
-    const utter = new SpeechSynthesisUtterance(text)
-    utter.lang = 'ja-JP'
-    const jaVoice = window.speechSynthesis.getVoices().find(v => v.lang.startsWith('ja'))
-    if (jaVoice) utter.voice = jaVoice
-    utter.onstart = () => setPlaying(true)
-    utter.onend = () => setPlaying(false)
-    utter.onerror = () => setPlaying(false)
-    window.speechSynthesis.cancel()
-    window.speechSynthesis.speak(utter)
-  }, [])
+  const caching = capabilities.cloud && phraseTotal > 0 && cachedCount < phraseTotal
 
-  // Play audio helper
-  // Track last blob URL so we can revoke it
-  const lastBlobUrlRef = useRef(null)
+  // Speak the current Japanese via the shared speaker (cloud if cached, else
+  // web-speech — which also warms the cloud clip for next time).
+  const handlePlay = useCallback(() => {
+    if (japanese) speak(japanese, { voice })
+  }, [japanese, voice, speak])
 
-  const playAudio = useCallback((audioData) => {
-    if (!audioData) return
-    try {
-      let url
-      // If the data has a URL (cached), use it directly
-      if (audioData.url) {
-        url = audioData.url
-      } else if (audioData.base64) {
-        const binary = atob(audioData.base64)
-        const bytes = new Uint8Array(binary.length)
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-        const blob = new Blob([bytes], { type: 'audio/mp3' })
-        url = URL.createObjectURL(blob)
-      } else {
-        return
-      }
-
-      // Revoke previous blob URL
-      if (lastBlobUrlRef.current) {
-        URL.revokeObjectURL(lastBlobUrlRef.current)
-        lastBlobUrlRef.current = null
-      }
-
-      if (audioRef.current) {
-        audioRef.current.pause()
-        audioRef.current.src = ''
-      }
-      const audio = new Audio(url)
-      // Track blob URLs for later revocation
-      if (!url.startsWith('http')) {
-        lastBlobUrlRef.current = url
-      }
-      audioRef.current = audio
-      audio.onended = () => {
-        setPlaying(false)
-      }
-      audio.onplay = () => setPlaying(true)
-      audio.onerror = () => {
-        setPlaying(false)
-      }
-      audio.play().catch(() => {
-        setPlaying(false)
-      })
-    } catch {
-      setPlaying(false)
-    }
-  }, [])
-
-  // Phase 1: translate → show result. Phase 2: TTS in background → enable play.
+  // Phase 1: translate → show result. Phase 2: speak/warm cloud audio.
   const doTranslate = useCallback(async (text) => {
     setLoading(true)
     setError('')
     setJapanese('')
     setRomaji('')
-    setAudioData(null)
     setCurrentHistoryId(null)
 
-    let translationResult
+    let result
     try {
-      translationResult = await translate(text)
-      setJapanese(translationResult.japanese)
-      setRomaji(translationResult.romaji || '')
-      const saved = await addToHistory({ uid: 'local', en: text, japanese: translationResult.japanese, reading: translationResult.reading || '', romaji: translationResult.romaji || '', segments: translationResult.segments || [], voice })
-      setCurrentHistoryId(saved.id)
-      setHistory(await getHistory('local'))
+      result = await translateText(text)
     } catch (err) {
-      setError(err.message)
+      setError(err?.message || 'Translation failed')
       setLoading(false)
       return
     }
+
+    const ja = result.text
+    const rm = result.romanization || ''
+    setJapanese(ja)
+    setRomaji(rm)
+
+    try {
+      const saved = await addToHistory({ uid: 'local', en: text, japanese: ja, reading: result.reading || '', romaji: rm, segments: result.segments || [], voice })
+      setCurrentHistoryId(saved.id)
+      setHistory(await getHistory('local'))
+    } catch {
+      // history is best-effort — never block the translation on storage errors
+    }
     setLoading(false)
 
-    setAudioLoading(true)
-    try {
-      const ttsData = await ttsWithCache(translationResult.japanese, voice)
-      if (ttsData?.audio && (ttsData.audio.base64 || ttsData.audio.url)) {
-        setAudioData(ttsData.audio)
-        window.speechSynthesis?.cancel()
-        if (autoPlay) playAudio(ttsData.audio)
-      }
-    } catch {
-      // TTS failure is non-fatal; browser speech remains as fallback
-    } finally {
-      setAudioLoading(false)
+    // Autoplay: fetch the cloud clip first, then speak so it plays the
+    // high-quality MP3 (matching the pre-port "wait for real audio" behavior).
+    // If warming fails (offline / not a member), speak() falls back to device.
+    if (autoPlay) {
+      await warmCloud(ja)
+      speak(ja, { voice })
+    } else {
+      void warmCloud(ja) // warm so a manual tap is high-quality
     }
-  }, [voice, autoPlay, playAudio, speakBrowser])
+  }, [voice, autoPlay, speak, warmCloud, translateText])
 
   const handleTranslate = useCallback(() => {
     const text = input.trim()
@@ -189,30 +151,21 @@ export default function Travel() {
     doTranslate(text)
   }, [input, doTranslate])
 
-  // Phrasebook tap: show the phrase immediately (no translate round-trip —
-  // the Japanese is already authored) and play audio cache-first so it works
+  // Phrasebook tap: show the phrase immediately (no translate round-trip — the
+  // Japanese is already authored) and play/warm audio cache-first so it works
   // in airplane mode once prefetched.
-  const handlePhrasebookTap = useCallback(async (phrase) => {
+  const handlePhrasebookTap = useCallback((phrase) => {
     setPhrasebookOpen(false)
     setInput(phrase.en)
     setJapanese(phrase.ja)
     setRomaji(phrase.romaji || '')
-    setAudioData(null)
     setError('')
     setCurrentHistoryId(null)
-    setAudioLoading(true)
-    try {
-      const result = await ttsWithCache(phrase.ja, voice)
-      if (result?.audio?.base64) {
-        setAudioData(result.audio)
-        if (autoPlay) playAudio(result.audio)
-      }
-    } catch {
-      // Offline and not yet cached — the text is still shown, just no audio.
-    } finally {
-      setAudioLoading(false)
-    }
-  }, [voice, autoPlay, playAudio])
+    // In-gesture tap: speak() plays the cloud clip if it's already cached (the
+    // phrasebook is pre-warmed on mount), otherwise device speech right away.
+    if (autoPlay) speak(phrase.ja, { voice })
+    else void warmCloud(phrase.ja)
+  }, [autoPlay, speak, warmCloud, voice])
 
   // Handle Enter key
   const handleKeyDown = (e) => {
@@ -221,12 +174,6 @@ export default function Travel() {
       handleTranslate()
     }
   }
-
-  // Replay audio — high-quality if available, browser speech as fallback
-  const handlePlay = useCallback(() => {
-    if (audioData) playAudio(audioData)
-    else if (japanese) speakBrowser(japanese)
-  }, [audioData, japanese, playAudio, speakBrowser])
 
   // Auto-play when the show-card opens
   useEffect(() => {
@@ -271,6 +218,11 @@ export default function Travel() {
 
   const currentStarred = !!history.find(h => h.id === currentHistoryId)?.starred
 
+  // Which engine a tap on the current phrase will use — drives the "browser
+  // speech" hint until the high-quality cloud clip is cached.
+  const cloudReady = !!japanese && engineFor(japanese, { voice }) === 'cloud'
+  const browserHint = cloudReady ? undefined : 'Browser speech — high-quality audio loading…'
+
   return (
     <div className="app">
       {/* Header */}
@@ -296,12 +248,12 @@ export default function Travel() {
             {romaji && <div className="romaji" lang="ja-Latn">{romaji}</div>}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <button
-                className={`play-btn ${playing ? 'playing' : ''} ${!audioData ? 'browser-audio' : ''}`}
+                className={`play-btn ${speaking ? 'playing' : ''} ${cloudReady ? '' : 'browser-audio'}`}
                 onClick={handlePlay}
-                title={audioLoading ? 'Browser speech — high-quality audio loading…' : !audioData ? 'Browser speech — TTS unavailable' : undefined}
+                title={browserHint}
                 aria-label="Play Japanese pronunciation"
               >
-                {playing ? '◉' : '▶'}
+                {speaking ? '◉' : '▶'}
               </button>
               {currentHistoryId && (
                 <button
@@ -339,9 +291,9 @@ export default function Travel() {
       <button className="phrasebook-chip" onClick={() => setPhrasebookOpen(true)}>
         <NavIco name="learn" size={16} /> Phrasebook
       </button>
-      {prefetch && (
+      {caching && (
         <div style={{ fontSize: 12, opacity: 0.55, marginTop: 4 }} aria-live="polite">
-          Caching phrases for offline… {prefetch.done}/{prefetch.total}
+          Caching phrases for offline… {cachedCount}/{phraseTotal}
         </div>
       )}
 
@@ -422,9 +374,7 @@ export default function Travel() {
                   <div className="rm">{item.romaji}</div>
                 </div>
                 <button className="replay-btn" onClick={() => {
-                  tts(item.japanese, item.voice || 'ja-JP-NanamiNeural').then(r => {
-                    if (r.audio) playAudio(r.audio)
-                  }).catch(() => {})
+                  speak(item.japanese, { voice: item.voice || 'ja-JP-NanamiNeural' })
                 }}>▶</button>
                 <button className={`star-btn ${item.starred ? 'starred' : ''}`}
                   onClick={async () => {
@@ -458,11 +408,11 @@ export default function Travel() {
             <div className="show-card-ja" lang="ja">{japanese}</div>
             {romaji && <div className="show-card-romaji">{romaji}</div>}
             <button
-              className={`show-card-play ${playing ? 'playing' : ''} ${!audioData ? 'browser-audio' : ''}`}
+              className={`show-card-play ${speaking ? 'playing' : ''} ${cloudReady ? '' : 'browser-audio'}`}
               onClick={handlePlay}
-              title={audioLoading ? 'Browser speech — high-quality audio loading…' : !audioData ? 'Browser speech — TTS unavailable' : undefined}
+              title={browserHint}
               aria-label="Play"
-            >{playing ? '◉' : '▶'}</button>
+            >{speaking ? '◉' : '▶'}</button>
             <button className="show-card-close" onClick={() => setShowCard(false)}>✕ tap to close</button>
           </div>
         </div>
@@ -476,9 +426,9 @@ export default function Travel() {
               <h2>Survival Phrases</h2>
               <button className="phrasebook-close" onClick={() => setPhrasebookOpen(false)}>✕</button>
             </div>
-            {prefetch && (
+            {caching && (
               <div style={{ fontSize: 12, opacity: 0.55, padding: '0 16px 8px' }} aria-live="polite">
-                Caching phrases for offline… {prefetch.done}/{prefetch.total}
+                Caching phrases for offline… {cachedCount}/{phraseTotal}
               </div>
             )}
             <div className="phrasebook-list">

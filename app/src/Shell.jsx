@@ -1,4 +1,6 @@
 import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
+import { T10nProvider } from '@jaesin/t10n-client/react'
+import { auth, ensureSignedIn } from './firebase.js'
 import Travel from './screens/Travel.jsx'
 import Learn from './screens/Learn.jsx'
 import Settings from './screens/Settings.jsx'
@@ -57,8 +59,21 @@ function RedirectToLastMode() {
   return <Navigate to={`/${last}`} replace />
 }
 
+// Forward the caller's Firebase ID token to the t10n worker. Module-level so its
+// identity is stable across renders (T10nProvider recreates its client when
+// getToken changes). Anonymous sign-in is enough — membership lives elsewhere.
+async function getToken() {
+  try {
+    const user = auth.currentUser ?? (await ensureSignedIn())
+    return user ? await user.getIdToken() : null
+  } catch {
+    return null
+  }
+}
+
 export default function Shell() {
   return (
+    <T10nProvider getToken={getToken}>
     <HashRouter>
       <div className="shell-content">
         <JoinGate>
@@ -85,5 +100,6 @@ export default function Shell() {
         <Route path="*" element={<BottomTabs />} />
       </Routes>
     </HashRouter>
+    </T10nProvider>
   )
 }

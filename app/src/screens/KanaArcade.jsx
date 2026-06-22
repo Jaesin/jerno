@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useSpeaker } from '@jaesin/t10n-client/react'
 import { grade, initialState } from '../data/srs.js'
 import { getSRSState, saveSRSState, getSRSMap } from '../data/store.js'
 import { itemsByUnit } from '../content/index.js'
-import { tts } from '../api.js'
 import { awardEvent } from '../data/progress.js'
 import { Plant, Flame, NavIco, Ico } from '../design/primitives.jsx'
 
@@ -70,20 +70,13 @@ function shuffle(arr) {
   return a
 }
 
-// Audio is best-effort: never block game flow on TTS failure.
-async function playKana(text) {
-  try {
-    const result = await tts(text)
-    const { base64, format } = result.audio
-    const binary = atob(base64)
-    const bytes = new Uint8Array(binary.length)
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-    const blob = new Blob([bytes], { type: `audio/${format}` })
-    const url = URL.createObjectURL(blob)
-    const audio = new Audio(url)
-    audio.play()
-    audio.onended = () => URL.revokeObjectURL(url)
-  } catch (e) { /* audio is best-effort */ }
+// Speak a kana's glyph via the shared t10n speaker (cloud TTS with web-speech
+// fallback; clips are cached and reused). Each game pulls its own `speak` from
+// useSpeaker — see useKanaSpeak below. Audio is best-effort: a failure inside
+// the speaker is swallowed there and never blocks game flow.
+function useKanaSpeak() {
+  const { speak } = useSpeaker()
+  return useCallback((text) => { if (text) speak(text, { lang: 'ja' }) }, [speak])
 }
 
 async function gradeItem(itemId, gradeValue) {
@@ -266,6 +259,7 @@ function KanaPopGame({
   const kidMode = isKidMode()
   const effectiveDuration = kidMode ? null : duration
   const choiceCount = kidMode ? 3 : 4
+  const playKana = useKanaSpeak()
 
   const [reverse, setReverse] = useState(false)
   const [phase, setPhase] = useState('play') // 'play' | 'end'
@@ -427,6 +421,7 @@ function KanaPopGame({
 const PAIRS_COUNT = 6 // 6 pairs → 12 cards
 
 function PairsGame({ onExit }) {
+  const playKana = useKanaSpeak()
   const [cards, setCards] = useState(null)   // [{ key, item, kind, label }]
   const [flipped, setFlipped] = useState([]) // card keys, max 2
   const [matched, setMatched] = useState(() => new Set()) // item ids
@@ -561,6 +556,7 @@ function EchoTilesGame({ onExit }) {
   const kidMode = isKidMode()
   const effectiveDuration = kidMode ? null : 45
   const tileCount = kidMode ? 3 : 4
+  const playKana = useKanaSpeak()
 
   const [phase, setPhase] = useState('play')
   const [q, setQ] = useState(null)
@@ -861,7 +857,8 @@ function KanaLadderGame({ onExit }) {
 }
 
 function IntroCard({ item }) {
-  useEffect(() => { playKana(item.glyph) }, [item])
+  const playKana = useKanaSpeak()
+  useEffect(() => { playKana(item.glyph) }, [item, playKana])
   return (
     <div style={{ textAlign: 'center' }}>
       <div className="kana-display-large">{item.glyph}</div>

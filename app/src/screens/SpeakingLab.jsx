@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { tts } from '../api.js'
+import { useSpeaker } from '@jaesin/t10n-client/react'
 import { allItems } from '../content/index.js'
 import { grade as gradeSRS, initialState, isDue } from '../data/srs.js'
 import { getSRSMap, saveSRSState } from '../data/store.js'
@@ -38,74 +38,27 @@ function focusPrompt(item) {
   return 'Listen: does the pitch rise or fall?'
 }
 
-// TTS audio hook — fetch base64 audio, cache blob URLs per text.
-// The cache maps text → Promise<blobUrl|null> so concurrent prefetch + play
-// calls for the same phrase share one network request.
+// TTS audio hook — cloud TTS with web-speech fallback via the shared t10n
+// speaker. The speaker owns its own cloud-clip cache, so `prefetch` warms the
+// next question's clip and `play` reuses it. `play` returns a resolved promise
+// so callers can chain (the dojo awaits it to advance its phase). `loading` is
+// retained for the dojo's spinner but is effectively unused now: device speech
+// starts instantly and a warmed cloud clip plays without a fetch.
 function useTTSAudio() {
-  const cacheRef = useRef(new Map())
-  const audioRef = useRef(null)
-  const [playing, setPlaying] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const { speak, prefetch: warm, speaking } = useSpeaker()
 
-  const fetchUrl = useCallback((text) => {
-    let promise = cacheRef.current.get(text)
-    if (!promise) {
-      promise = (async () => {
-        const result = await tts(text)
-        const b64 = result?.audio?.base64
-        if (!b64) return null
-        const binary = atob(b64)
-        const bytes = new Uint8Array(binary.length)
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-        return URL.createObjectURL(new Blob([bytes], { type: 'audio/mpeg' }))
-      })().catch(() => {
-        // Drop failed fetches from the cache so a replay can retry
-        cacheRef.current.delete(text)
-        return null
-      })
-      cacheRef.current.set(text, promise)
-    }
-    return promise
-  }, [])
+  const play = useCallback((text) => {
+    if (text) speak(text, { lang: 'ja' })
+    return Promise.resolve()
+  }, [speak])
 
-  // Warm the cache without playing — used to pre-fetch the next question
+  // Warm the cloud clip without playing — used to pre-fetch the next question.
+  // `warm` is only present on newer t10n-client builds; guard for older pins.
   const prefetch = useCallback((text) => {
-    if (text) fetchUrl(text)
-  }, [fetchUrl])
+    if (text && typeof warm === 'function') void warm([{ text, lang: 'ja' }])
+  }, [warm])
 
-  const play = useCallback(async (text) => {
-    if (!text) return
-    try {
-      setLoading(true)
-      const url = await fetchUrl(text)
-      setLoading(false)
-      if (!url) return
-      if (audioRef.current) audioRef.current.pause()
-      const audio = new Audio(url)
-      audioRef.current = audio
-      audio.onplay = () => setPlaying(true)
-      audio.onended = () => setPlaying(false)
-      audio.onerror = () => setPlaying(false)
-      await audio.play()
-    } catch {
-      // Audio is best-effort: never block the UI on TTS failures
-      setLoading(false)
-      setPlaying(false)
-    }
-  }, [fetchUrl])
-
-  useEffect(() => {
-    const cache = cacheRef.current
-    return () => {
-      if (audioRef.current) audioRef.current.pause()
-      for (const promise of cache.values()) {
-        Promise.resolve(promise).then(url => { if (url) URL.revokeObjectURL(url) })
-      }
-      cache.clear()
-    }
-  }, [])
-
-  return { play, prefetch, playing, loading }
+  return { play, prefetch, playing: speaking, loading: false }
 }
 
 // ---------------------------------------------------------------------------

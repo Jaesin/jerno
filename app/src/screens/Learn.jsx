@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { tts } from '../api.js'
+import { useSpeaker } from '@jaesin/t10n-client/react'
 import { allItems, itemsByUnit, UNITS_ORDER } from '../content/index.js'
 import { grade as gradeSRS, isDue } from '../data/srs.js'
 import { buildSession } from '../data/session.js'
@@ -53,51 +53,17 @@ function resolveExerciseType(exerciseType, item) {
 }
 
 // ---------------------------------------------------------------------------
-// TTS audio hook — fetch base64 audio, cache blob URLs per text
+// TTS audio hook — cloud TTS with web-speech fallback via the shared t10n
+// speaker (cloud clips are cached + reused; a tap warms the cloud clip for next
+// time). Keeps the { play, playing } shape the exercises expect.
 // ---------------------------------------------------------------------------
 
 function useTTSAudio() {
-  const cacheRef = useRef(new Map())
-  const audioRef = useRef(null)
-  const [playing, setPlaying] = useState(false)
-
-  const play = useCallback(async (text) => {
-    if (!text) return
-    try {
-      let url = cacheRef.current.get(text)
-      if (!url) {
-        const result = await tts(text)
-        const b64 = result?.audio?.base64
-        if (!b64) return
-        const binary = atob(b64)
-        const bytes = new Uint8Array(binary.length)
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-        url = URL.createObjectURL(new Blob([bytes], { type: 'audio/mpeg' }))
-        cacheRef.current.set(text, url)
-      }
-      if (audioRef.current) audioRef.current.pause()
-      const audio = new Audio(url)
-      audioRef.current = audio
-      audio.onplay = () => setPlaying(true)
-      audio.onended = () => setPlaying(false)
-      audio.onerror = () => setPlaying(false)
-      await audio.play()
-    } catch {
-      // Audio is best-effort: never block the exercise on TTS failures
-      setPlaying(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    const cache = cacheRef.current
-    return () => {
-      if (audioRef.current) audioRef.current.pause()
-      for (const url of cache.values()) URL.revokeObjectURL(url)
-      cache.clear()
-    }
-  }, [])
-
-  return { play, playing }
+  const { speak, speaking } = useSpeaker()
+  const play = useCallback((text) => {
+    if (text) speak(text, { lang: 'ja' })
+  }, [speak])
+  return { play, playing: speaking }
 }
 
 function AudioButton({ onClick, playing, big = false }) {
